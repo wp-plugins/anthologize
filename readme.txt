@@ -22,6 +22,10 @@ To install Anthologize, follow these steps.
 1. Activate Anthologize through the WordPres 'Plugins' menu
 1. Visit Dashboard > Anthologize to start compiling your project
 
+== Screenshots ==
+
+1. The Anthologize Project Organizer screen
+
 == Changelog ==
 
 = 0.3-alpha =
