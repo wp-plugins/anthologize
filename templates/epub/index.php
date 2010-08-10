@@ -1,6 +1,7 @@
 <?php
 
   error_reporting(0);
+  set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__FILE__) . '/pear_ext');
 
   /*
 
@@ -14,6 +15,11 @@
     6. Delete all temp stuff
 
   */
+
+  if (!class_exists('XSLTProcessor', false))
+      die ('ePub export requires XSL support');
+
+  require_once('Archive.php');
 
   define('TEI',  'http://www.tei-c.org/ns/1.0'  );
   define('HTML', 'http://www.w3.org/1999/xhtml' );
@@ -53,8 +59,10 @@
 
   mkdir($temp_epub_meta_inf_dir, 0777, true);
   mkdir($temp_epub_oebps_dir,    0777, true);
-  mkdir($temp_epub_images_dir,   0777, true);
 
+  if(! file_exists($temp_epub_images_dir)) {
+    mkdir($temp_epub_images_dir,   0777, true);
+  }
   // Create & populate mimetype file
 
   $mimetype_filename = $temp_epub_dir_name .  DIRECTORY_SEPARATOR . "mimetype";
@@ -100,9 +108,12 @@
     // Get image url & open file
 
     $image_url = $image_url_node->nodeValue;
+
+
     $image_filename = preg_replace('/^.*\//', '', $image_url); // Erase all but filename from URL
 
     $ch = curl_init($image_url);
+
     $fp = fopen($temp_epub_images_dir . '/' . $image_filename, "w");
 
     // Fetch image from url & put into file
@@ -190,8 +201,8 @@ echo preg_replace($pattern, $replacement, $string);
   // Delete all contents in temp dir
   // Code derived from http://www.php.net/manual/en/class.recursiveiteratoriterator.php
 
-  // deleteDirectoryWithContents($temp_epub_dir_name);
-  // unlink($temp_zip_filename);
+  deleteDirectoryWithContents($temp_epub_dir_name);
+  unlink($temp_zip_filename);
 
   die();  // END
 
@@ -200,23 +211,22 @@ echo preg_replace($pattern, $replacement, $string);
 
   function zip_it($source, $destination)
   {
-    if (extension_loaded('zip') === true)
+    $source = realpath($source);
+
+    if (is_readable($source) === true)
     {
-      if (file_exists($source) === true)
+      if (extension_loaded('zip') === true)
       {
         $zip = new ZipArchive();
 
         if ($zip->open($destination, ZIPARCHIVE::CREATE) === true)
         {
-          $source = realpath($source);
           $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source), RecursiveIteratorIterator::SELF_FIRST);
 
           // Iterate through files & directories and add to archive object
 
           foreach ($files as $file)
           {
-            $file = realpath($file);
-
             if (is_dir($file) === true) // Create directories as they are found
             {
               $zip->addEmptyDir(str_replace($source . '/', '', $file . '/'));
@@ -233,12 +243,31 @@ echo preg_replace($pattern, $replacement, $string);
         }
         return $zip->close();
       }
+      else
+      {
+        $original_dir = getcwd();
+        chdir($source);
+
+        File_Archive::extract(
+          File_Archive::read('.'),
+          File_Archive::toArchive(
+              $destination,
+              File_Archive::toFiles(),
+              'zip'
+          )
+        );
+
+        chdir($original_dir);
+
+        // TODO: add filesize check?
+        if (is_readable($destination)) {
+            return true;
+        }
+      }
+    } else {
+      echo "Source content does not exist or is not readable<br />";
     }
-    else
-    {
-      echo "Zip library not installed<br />";
-      return false;
-    }
+
     return false;
   }
 

@@ -16,17 +16,33 @@ Visit [anthologize.org](http://anthologize.org/ "Anthologize") to learn more abo
 
 == Installation ==
 
-To install Anthologize, follow these steps.
+The best way to install Anthologize is via the Add New link under Dashboard > Plugins.
+
+To install Anthologize manually, follow these steps.
 
 1. Upload the `anthologize` directory to `/wp-content/plugins/`
 1. Activate Anthologize through the WordPres 'Plugins' menu
 1. Visit Dashboard > Anthologize to start compiling your project
+
+If you're upgrading manually from a previous version of Anthologize, please be sure to deactivate your existing plugin before replacing it with the new files, and reactivate after uploading.
 
 == Screenshots ==
 
 1. The Anthologize Project Organizer screen
 
 == Changelog ==
+
+= 0.4-alpha =
+* Better PHP error handling for increased export reliability
+* Better character encoding in output formats
+* Better image handling in PHP export
+* Required compression libraries for ePub are now bundled with Anthologize
+* Project organizer screen improvements: Anthologize remembers your last used filter when you return to the page; a bug related to item ordering was fixed; "Are you sure?" message added to the Delete Project button; better handling of item names with colons and other characters
+* Export screen improvements: project metadata (such as copyright information) is saved; selecting projects from the dropdown automatically pulls in saved metadata
+* Namespaced WordPress post type names to ensure compatibility with other plugins
+* Anthologize content is now set to 'draft' by default, keeping it out of WordPress searches and reducing conflict with plugins hooking to publish_post
+* Frontmatter added to PDF export
+* Improved TEI output
 
 = 0.3-alpha =
 * Initial public release
