@@ -14,6 +14,7 @@ class Anthologize_Ajax_Handlers {
         add_action( 'wp_ajax_get_posts_by', array( $this, 'get_posts_by' ) );
         add_action( 'wp_ajax_place_item', array( $this, 'place_item' ) );
         add_action( 'wp_ajax_merge_items', array( $this, 'merge_items' ) );
+        add_action( 'wp_ajax_get_project_meta', array( $this, 'fetch_project_meta' ) );
     }
 
     function __construct() {
@@ -27,32 +28,24 @@ class Anthologize_Ajax_Handlers {
     function fetch_tags() {
         $tags = get_tags();
 
-        $the_tags = '';
+        $the_tags = Array();
         foreach( $tags as $tag ) {
-            $the_tags .= $tag->slug . ':' . $tag->name . ',';
+            $the_tags[$tag->slug] = $tag->name;
         }
 
-        if (strlen($the_tags) > 0) {
-            $the_tags = substr($the_tags, 0, strlen($the_tags)-1);
-        }
-
-        print($the_tags);
+        print(json_encode($the_tags));
         die();
     }
 
     function fetch_cats() {
         $cats = get_categories();
 
-        $the_cats = '';
+        $the_cats = Array();
         foreach( $cats as $cat ) {
-            $the_cats .= $cat->term_id . ':' . $cat->name . ',';
+            $the_cats[$cat->term_id] = $cat->name;
         }
 
-        if (strlen($the_cats) > 0) {
-            $the_cats = substr($the_cats, 0, strlen($the_cats)-1);
-        }
-
-        print($the_cats);
+        print(json_encode($the_cats));
         die();
     }
 
@@ -64,26 +57,22 @@ class Anthologize_Ajax_Handlers {
         $t_or_c = ( $tagorcat == 'tag' ) ? 'tag' : 'cat';
 
         $args = array(
-            'post_type' => array('post', 'page', 'imported_items' ),
+            'post_type' => array('post', 'page', 'anth_imported_item' ),
             $t_or_c => $term,
             'posts_per_page' => -1
         );
 
         query_posts( $args );
 
-        $response = '';
+
+        $the_posts = Array();
 
         while ( have_posts() ) {
             the_post();
-            $response .= get_the_ID() . ':' . get_the_title() . ',';
+            $the_posts[get_the_ID()] = get_the_title();
         }
 
-
-        if (strlen($response) > 0) {
-            $response = substr($response, 0, strlen($response)-1);
-        }
-
-        print($response);
+        print(json_encode($the_posts));
 
         die();
     }
@@ -158,6 +147,21 @@ class Anthologize_Ajax_Handlers {
         }*/
 
         die();
+    }
+
+    function fetch_project_meta() {
+		$result = '';
+		$project_id = $_POST['proj_id'];
+
+		if ( $options = get_post_meta( $project_id, 'anthologize_meta', true ) )
+			$result = json_encode( $options );
+		else
+			$result = json_encode( 'none' );
+
+    	print(json_encode( $result ));
+
+    	die();
+
     }
 
 }

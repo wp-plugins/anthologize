@@ -16,10 +16,12 @@ class TeiDom {
 
 
 	function __construct($postArray, $checkImgSrcs = true) {
+
+
+
     if( isset($postArray['do-shortcodes']) && $postArray['do-shortcodes'] == false ) {
     	$this->doShortcodes = false;
     }
-
 
 		$this->dom = new DOMDocument();
     $templatePath = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" .
@@ -28,9 +30,10 @@ class TeiDom {
     $this->dom->preserveWhiteSpace = false;
     $this->setXPath();
 		$this->buildProjectData($postArray['project_id']);
-
     $this->processPostArray($postArray);
     $this->sanitizeContent($checkImgSrcs);
+
+
 	}
 
 
@@ -77,7 +80,8 @@ class TeiDom {
       $postArray['dedication'] = "<p></p>";
     }
 
-    $frag->appendXML($postArray['dedication']);
+    $f1Content = htmlentities($postArray['dedication']);
+    $frag->appendXML($f1Content);
     $f1Html->appendChild($frag);
 
     //front2
@@ -91,6 +95,7 @@ class TeiDom {
     	$postArray['acknowledgements'] = "<p></p>";
     }
 
+    $f2Content = htmlentities($postArray['acknowledgements']);
     $frag->appendXML($postArray['acknowledgements']);
     $f2Html->appendChild($frag);
 
@@ -122,10 +127,6 @@ class TeiDom {
     //font-family
     $fontFamilyNode = $this->xpath->query("anth:param[@name='font-family']", $outParamsNode)->item(0);
     $fontFamilyNode->appendChild($this->dom->createTextNode($postArray['font-face']));
-
-
-
-
 
   }
 
@@ -193,9 +194,13 @@ class TeiDom {
     if(! in_array($userObject->user_nicename, $this->userNiceNames)) {
        $newPerson = $this->dom->createElementNS(TEI, 'person');
        $newPerson->setAttribute('xml:id', $userObject->user_nicename );
-       foreach($userObject->wp_capabilities as $role=>$wtf) {
-        $roleStr .= $role . " ";
+       if(is_array($userObject->wp_capabilities)) {
+           $roleStr = "";
+           foreach($userObject->wp_capabilities as $role=>$capabilities) {
+            $roleStr .= $role . " ";
+           }
        }
+
        $newPerson->setAttribute('role', $roleStr);
        $newPersName = $this->dom->createElement('persName');
        $newPersName->appendChild($this->dom->createElementNS(TEI, 'tei:forename', $userObject->first_name));
@@ -217,8 +222,8 @@ class TeiDom {
 
   public function buildProjectData($projectID) {
 
-  	$projectData = new WP_Query(array('ID'=>$projectID, 'post_type'=>'projects'));
-    $project = $projectData->posts[0];
+  	$projectData = new WP_Query(array('post__in'=>array($projectID), 'post_type'=>'anth_project'));
+    $project = $projectData->post;
 
     $titleNode = $this->xpath->query('/tei:TEI/tei:teiHeader/tei:fileDesc/tei:titleStmt/tei:title')->item(0);
     //yes, I tried $titleNode->textContent=$project->post_title. No, it didn't work. No, I don't know why
@@ -239,7 +244,7 @@ class TeiDom {
 
     $identNode->appendChild($this->dom->createCDataSection($project->guid));
 
-    $partsData =  new WP_Query(array('post_parent'=>$projectID, 'post_type'=>'parts'));
+    $partsData =  new WP_Query(array('post_parent'=>$projectID, 'post_type'=>'anth_part'));
 
     $partObjectsArray = $partsData->posts;
 
@@ -248,7 +253,7 @@ class TeiDom {
 
     foreach($partObjectsArray as $partObject) {
     	$newPart = $this->newPart($partObject);
-      $libraryItemsData = new WP_Query(array('post_parent'=>$partObject->ID, 'post_type'=>'library_items'));
+      $libraryItemsData = new WP_Query(array('post_parent'=>$partObject->ID, 'post_type'=>'anth_library_item', 'posts_per_page'=>200));
       $libraryItemObjectsArray = $libraryItemsData->posts;
       //sort objects, by menu_order, then ID
       usort($libraryItemObjectsArray, array('TeiDom', 'postSort'));
@@ -273,21 +278,21 @@ class TeiDom {
     $newPostContent->setAttribute('type', 'libraryItem');
     $newPostContent->setAttribute('subtype', 'html');
     $newPostContent->appendChild($this->newHead($libraryItemObject));
-    $tmpHTML = new DOMDocument();
 
-    //$content = do_shortcode($libraryItemObject->post_content);
+
     $content = $libraryItemObject->post_content;
-    //TODO: find shortcodes and display pseudo-error text
-    //TODO: only other option is to reliably expand EVERYTHING _AND_ check the HTML for breakage
-    $content = utf8_encode($content);
+    $content = wpautop($content);
     if($this->doShortcodes) {
       $content = do_shortcode($content);
     } else {
     	$content = $this->sanitizeShortCodes($content);
     }
-    //using loadHTML because it is more forgiving than loadXML
 
-    $tmpHTML->loadHTML($content);
+    $content = $this->sanitizeEntities($content);
+    //using loadHTML because it is more forgiving than loadXML
+    $tmpHTML = new DomDocument('1.0', 'UTF-8');
+    //conceal the Warning about bad html with @
+    @$tmpHTML->loadHTML('<?xml encoding="UTF-8"><body>' . $content . '</body>' );
     if($this->checkImgSrcs) {
       $this->checkImgSrcs($tmpHTML);
 
@@ -345,6 +350,32 @@ class TeiDom {
   private function sanitizeContent($checkImgSrcs) {
     //TODO: check connectivity
 
+
+
+    //strip out <a rel="nofollow"> (wordpress feeds)
+    $aNoFollowNodes = $this->xpath->query('//a[@rel="nofollow"]');
+    foreach($aNoFollowNodes as $aNode) {
+      $aNode->parentNode->removeChild($aNode);
+    }
+
+    //strip out feedburner links
+    $aFeedBurnerLinkNodes = $this->xpath->query('//a[contains(@href, "http://feeds.feedburner.com")]');
+    foreach($aFeedBurnerLinkNodes as $aNode) {
+    	$aNode->parentNode->removeChild($aNode);
+    }
+
+    //strip out feedburner invisible images
+    $imgNodes = $this->xpath->query('//img[contains(@src, "http://feeds.feedburner.com")]');
+    foreach($imgNodes as $imgNode) {
+      $imgNode->parentNode->removeChild($imgNode);
+    }
+
+    //strip out wordpress stats invisible images
+    $imgNodes = $this->xpath->query('//img[contains(@src, "http://stats.wordpress.com")]');
+    foreach($imgNodes as $imgNode) {
+      $imgNode->parentNode->removeChild($imgNode);
+    }
+    //TODO: strip out any empty containers
     if($checkImgSrcs) {
       $this->checkImgSrcs();
     }
@@ -358,6 +389,11 @@ class TeiDom {
     //TODO: go to town
   }
 
+  private function sanitizeEntities($content) {
+    //TODO: sort out the best order to convert characters and sanitizing stuff.
+    //don't want to do html_entity_decode or specialchar_decode in case we need to leave those in place
+    return str_replace("&nbsp;", " ", $content);
+  }
   private function sanitizeShortCode($m) {
   	//modified from WP do_shortcode_tag() wp_includes/shorcodes.php
 
@@ -380,6 +416,11 @@ class TeiDom {
         $src =  $imgNode->getAttribute('src');
         //TODO: check to see if the src is http:// or a relative path
         // if relative path, convert it into an http://
+
+        //first clobber any annoying img links to Reddit, delicious, etc.
+        //that might have been inserted.
+
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $src);
         //curl_setopt($ch, CURLOPT_HEADER, true);
@@ -392,8 +433,11 @@ class TeiDom {
           $noImgSpan->setAttribute('class', 'anthologize-error');
           $imgNode->parentNode->replaceChild($noImgSpan, $imgNode);
         }
+
     }
   }
+
+
 
   public static function getFileName($postArray) {
         $text = strtolower($postArray['post-title']);

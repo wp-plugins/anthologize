@@ -54,7 +54,14 @@ class Anthologize_Project_Organizer {
 
 		<div id="anthologize-logo"><img src="<?php echo WP_PLUGIN_URL . '/anthologize/images/anthologize-logo.gif' ?>" /></div>
 
-		<h2><?php echo $this->project_name ?></h2>
+		<h2><?php echo $this->project_name ?>
+
+		<div id="project-actions">
+			<a href="admin.php?page=anthologize/includes/class-new-project.php&project_id=<?php echo $this->project_id ?>"><?php _e( 'Project Details', 'anthologize' ) ?></a> |
+			<a href="admin.php?page=anthologize&action=delete&project_id=<?php echo $this->project_id ?>" class="confirm-delete"><?php _e( 'Delete Project', 'anthologize' ) ?></a>
+		</div>
+
+		</h2>
 
 		<?php if ( isset( $_GET['append_parent'] ) && !isset( $_GET['append_children'] ) ) : ?>
 			<div id="message" class="updated below-h2">
@@ -77,7 +84,7 @@ class Anthologize_Project_Organizer {
 							</p>
 
 							<p id="menu-item-name-wrap">
-								<?php $this->filter_dropdown_tags() ?>
+								<?php $this->filter_dropdown() ?>
 							</p>
 
 
@@ -99,7 +106,7 @@ class Anthologize_Project_Organizer {
 
 				<div class="postbox" id="anthologize-parts-box">
 
-				<div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span><?php _e( 'Parts', 'Anthologize' ) ?></span><div class="part-item-buttons button" id="new-part"><a href="post-new.php?post_type=parts&project_id=<?php echo $this->project_id ?>&new_part=1"><?php _e( 'New Part', 'anthologize' ) ?></a></div></h3>
+				<div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span><?php _e( 'Parts', 'Anthologize' ) ?></span><div class="part-item-buttons button" id="new-part"><a href="post-new.php?post_type=anth_part&project_id=<?php echo $this->project_id ?>&new_part=1"><?php _e( 'New Part', 'anthologize' ) ?></a></div></h3>
 
 				<div id="partlist">
 
@@ -144,46 +151,48 @@ class Anthologize_Project_Organizer {
 
 	function sortby_dropdown() {
 		$filters = array( 'tag' => __( 'Tag', 'anthologize' ), 'category' => __( 'Category', 'anthologize' ) );
-
+		if ( isset( $_COOKIE['anth-filter'] ) )
+			$cfilter = $_COOKIE['anth-filter'];
 		?>
             <span>Filter by</span>
 			<select name="sortby" id="sortby-dropdown">
 				<option value="" selected="selected"><?php _e( 'All posts', 'anthologize' ) ?></option>
 				<?php foreach( $filters as $filter => $name ) : ?>
-					<option value="<?php echo $filter ?>"><?php echo $name ?></option>
+					<option value="<?php echo $filter ?>" <?php if ( $filter == $cfilter ) : ?>selected="selected"<?php endif; ?>><?php echo $name ?></option>
 				<?php endforeach; ?>
 			</select>
 		<?php
 	}
 
-	function filter_dropdown_tags() {
-		//$tags = get_tags();
-        $tags = Array();
+	function filter_dropdown() {
+
+		$cterm = $_COOKIE['anth-term'];
+
+		switch ( $_COOKIE['anth-filter'] ) {
+			case 'tag' :
+				$terms = get_tags();
+				$nulltext = __( 'All tags', 'anthologize' );
+				break;
+			case 'category' :
+				$terms = get_categories();
+				$nulltext = __( 'All categories', 'anthologize' );
+				break;
+			default :
+				$terms = Array();
+				$nulltext = ' - ';
+				break;
+		}
 
 		?>
 			<select name="filter" id="filter">
-				<option value="" disabled="disabled"> - </option>
-				<?php foreach( $tags as $tag ) : ?>
-					<option value="<?php echo $tag->term_id ?>"><?php echo $tag->name ?></option>
+				<option value=""><?php echo $nulltext; ?></option>
+				<?php foreach( $terms as $term ) : ?>
+					<?php $term_value = ( $_COOKIE['anth-filter'] == 'tag' ) ? $term->slug : $term->term_id; ?>
+					<option value="<?php echo $term_value ?>" <?php if ( $cterm == $term_value ) : ?>selected="selected"<?php endif; ?>><?php echo $term->name ?></option>
 				<?php endforeach; ?>
 			</select>
 		<?php
 	}
-
-
-	function filter_dropdown_cats() {
-		$cats = get_categories();
-
-		?>
-			<select name="filter" id="filter">
-				<option value="" disabled="disabled"> - </option>
-				<?php foreach( $cats as $cat ) : ?>
-					<option value="<?php echo $cat->term_id ?>"><?php echo $cat->name ?></option>
-				<?php endforeach; ?>
-			</select>
-		<?php
-	}
-
 
 
 	function add_item_to_part( $item_id, $part_id ) {
@@ -194,6 +203,7 @@ class Anthologize_Project_Organizer {
 
 		$last_item++;
 		$post = get_post( $item_id );
+		$part = get_post( $part_id );
 
 		$args = array(
 		  'menu_order' => $last_item,
@@ -207,9 +217,9 @@ class Anthologize_Project_Organizer {
 		  'post_excerpt' => $post->post_excerpt,
 		  'post_parent' => $part_id,
 		  'post_password' => $post->post_password,
-		  'post_status' => 'publish',
+		  'post_status' => $part->post_status, // post_status is set to the post_status of the parent part
 		  'post_title' => $post->post_title,
-		  'post_type' => 'library_items',
+		  'post_type' => 'anth_library_item',
 		  'to_ping' => $post->to_ping, // todo: tags and categories
 		);
 
@@ -235,10 +245,12 @@ class Anthologize_Project_Organizer {
 
 		$last_item++;
 
+		$project = get_post( $this->project_id );
+
 		$args = array(
 		  'post_title' => $part_name,
-		  'post_type' => 'parts',
-		  'post_status' => 'publish',
+		  'post_type' => 'anth_part',
+		  'post_status' => $project->post_status,
 		  'post_parent' => $this->project_id
 		);
 
@@ -253,7 +265,7 @@ class Anthologize_Project_Organizer {
 
 	function list_existing_parts() {
 
-		query_posts( 'post_type=parts&order=ASC&orderby=menu_order&post_parent=' . $this->project_id );
+		query_posts( 'post_type=anth_part&order=ASC&orderby=menu_order&post_parent=' . $this->project_id );
 
 		if ( have_posts() ) {
 			while ( have_posts() ) {
@@ -312,7 +324,7 @@ class Anthologize_Project_Organizer {
 			}
 		} else {
 		?>
-			<p><?php echo sprintf( __( 'You haven\'t created any parts yet! Click <a href="%1$s">"New Part"</a> to get started.', 'anthologize' ), 'post-new.php?post_type=parts&project_id=' . $this->project_id . '&new_part=1' ) ?></p>
+			<p><?php echo sprintf( __( 'You haven\'t created any parts yet! Click <a href="%1$s">"New Part"</a> to get started.', 'anthologize' ), 'post-new.php?post_type=anth_part&project_id=' . $this->project_id . '&new_part=1' ) ?></p>
 		<?php
 		}
 
@@ -325,9 +337,16 @@ class Anthologize_Project_Organizer {
 		global $wpdb;
 
 		$args = array(
-			'post_type' => array('post', 'page', 'imported_items' ),
+			'post_type' => array('post', 'page', 'anth_imported_item' ),
 			'posts_per_page' => -1
 		);
+
+		if ( $cterm = $_COOKIE['anth-term'] ) {
+			if ( $cfilter = $_COOKIE['anth-filter'] ) {
+				$t_or_c = ( $cfilter == 'tag' ) ? 'tag' : 'cat';
+	        	$args[$t_or_c] = $cterm;
+			}
+		}
 
 		$big_posts = new WP_Query( $args );
 
@@ -351,7 +370,7 @@ class Anthologize_Project_Organizer {
 
 //		print_r($item_query->query());
 
-		$sql = "SELECT id, post_title FROM wp_posts WHERE post_type = 'page' OR post_type = 'post' OR post_type = 'imported_items'";
+		$sql = "SELECT id, post_title FROM wp_posts WHERE post_type = 'page' OR post_type = 'post' OR post_type = 'anth_imported_item'";
 		$ids = $wpdb->get_results($sql);
 
 		$counter = 0;
@@ -383,7 +402,7 @@ class Anthologize_Project_Organizer {
 
 		$args = array(
 			'post_parent' => $part_id,
-			'post_type' => 'library_items',
+			'post_type' => 'anth_library_item',
 			'posts_per_page' => -1,
 			'orderby' => 'menu_order',
 			'order' => ASC
