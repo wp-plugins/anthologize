@@ -13,7 +13,7 @@ class Anthologize_Project_Organizer {
 		$this->project_id = $project_id;
 
 		$project = get_post( $project_id );
-
+	
 		$this->project_name = $project->post_title;
 
 	}
@@ -74,19 +74,20 @@ class Anthologize_Project_Organizer {
 				<div id="side-sortables" class="meta-box-sortables ui-sortable">
 
 				<div id="add-custom-links" class="postbox ">
-				<div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span><?php _e( 'Items', 'Anthologize' ) ?></span></h3>
+				<div class="handlediv" title="<?php _e( 'Click to toggle', 'anthologize' ) ?>"><br></div><h3 class="hndle"><span><?php _e( 'Items', 'anthologize' ) ?></span></h3>
 				<div class="inside">
 					<div class="customlinkdiv" id="customlinkdiv">
-
 
 							<p id="menu-item-name-wrap">
 								<?php $this->sortby_dropdown() ?>
 							</p>
 
-							<p id="menu-item-name-wrap">
+							<p id="termfilter">
 								<?php $this->filter_dropdown() ?>
 							</p>
-
+							<p id="datefilter">
+								<?php $this->filter_date(); ?>
+							</p>
 
 							<h3 class="part-header"><?php _e( 'Posts', 'anthologize' ) ?></h3>
 							<div id="posts-scrollbox">
@@ -106,7 +107,7 @@ class Anthologize_Project_Organizer {
 
 				<div class="postbox" id="anthologize-parts-box">
 
-				<div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span><?php _e( 'Parts', 'Anthologize' ) ?></span><div class="part-item-buttons button" id="new-part"><a href="post-new.php?post_type=anth_part&project_id=<?php echo $this->project_id ?>&new_part=1"><?php _e( 'New Part', 'anthologize' ) ?></a></div></h3>
+				<div class="handlediv" title="<?php _e( 'Click to toggle', 'anthologize' ) ?>"><br></div><h3 class="hndle"><span><?php _e( 'Parts', 'anthologize' ) ?></span><div class="part-item-buttons button" id="new-part"><a href="post-new.php?post_type=anth_part&project_id=<?php echo $this->project_id ?>&new_part=1"><?php _e( 'New Part', 'anthologize' ) ?></a></div></h3>
 
 				<div id="partlist">
 
@@ -139,22 +140,22 @@ class Anthologize_Project_Organizer {
 
 		</div> <!-- #project-organizer-frame -->
 
-
-
-
-
-
 		</div> <!-- .wrap -->
 		<?php
 
 	}
 
 	function sortby_dropdown() {
-		$filters = array( 'tag' => __( 'Tag', 'anthologize' ), 'category' => __( 'Category', 'anthologize' ) );
+		$filters = array( 
+			'tag' => __( 'Tag', 'anthologize' ), 
+			'category' => __( 'Category', 'anthologize' ),
+			'date' => __( 'Date Range', 'anthologize' ),
+			'post_type' => __( 'Post Type', 'anthologize' )
+		);
 		if ( isset( $_COOKIE['anth-filter'] ) )
 			$cfilter = $_COOKIE['anth-filter'];
 		?>
-            <span>Filter by</span>
+            <span><?php _e( 'Filter by', 'anthologize' ) ?></span>
 			<select name="sortby" id="sortby-dropdown">
 				<option value="" selected="selected"><?php _e( 'All posts', 'anthologize' ) ?></option>
 				<?php foreach( $filters as $filter => $name ) : ?>
@@ -166,9 +167,15 @@ class Anthologize_Project_Organizer {
 
 	function filter_dropdown() {
 
-		$cterm = $_COOKIE['anth-term'];
-
-		switch ( $_COOKIE['anth-filter'] ) {
+		$cterm = ( isset( $_COOKIE['anth-term'] ) ) ? $_COOKIE['anth-term'] : false;
+		
+		$cfilter = ( isset( $_COOKIE['anth-filter'] ) ) ? $_COOKIE['anth-filter'] : false;
+		
+		$cstartdate = ( isset( $_COOKIE['anth-startdate'] ) ) ? $_COOKIE['anth-startdate'] : false;
+				
+		$cenddate = ( isset( $_COOKIE['anth-enddate'] ) ) ? $_COOKIE['anth-enddate'] : false;		
+	
+		switch ( $cfilter ) {
 			case 'tag' :
 				$terms = get_tags();
 				$nulltext = __( 'All tags', 'anthologize' );
@@ -177,6 +184,17 @@ class Anthologize_Project_Organizer {
 				$terms = get_categories();
 				$nulltext = __( 'All categories', 'anthologize' );
 				break;
+			case 'post_type' :
+				$types = $this->available_post_types();
+				$terms = array();
+				foreach ( $types as $type_id => $type_label ) {
+					$type_object = null;
+					$type_object->term_id = $type_id;
+					$type_object->name = $type_label;
+					$terms[] = $type_object;
+				}
+				$nulltext = __( 'All post types', 'anthologize' );
+				break;
 			default :
 				$terms = Array();
 				$nulltext = ' - ';
@@ -184,6 +202,7 @@ class Anthologize_Project_Organizer {
 		}
 
 		?>
+			
 			<select name="filter" id="filter">
 				<option value=""><?php echo $nulltext; ?></option>
 				<?php foreach( $terms as $term ) : ?>
@@ -191,52 +210,97 @@ class Anthologize_Project_Organizer {
 					<option value="<?php echo $term_value ?>" <?php if ( $cterm == $term_value ) : ?>selected="selected"<?php endif; ?>><?php echo $term->name ?></option>
 				<?php endforeach; ?>
 			</select>
+			
 		<?php
 	}
 
+	function filter_date(){
+		?>
+		
+		<label for="startdate">Start</label> <input name="starddate" id="startdate" type="text"/>
+		<br />
+		<label for="enddate">End</label> <input name="enddate" id="enddate" type="text" />
+		<br />
+		<input type="button" id="launch_date_filter" value="Filter" /> 
+		<?php
+	}
+	
+	// A filterable list of post types that can
+	// serve as a filter for the project organizer
+	function available_post_types() {
+		$types = array(
+			'post' => __( 'Posts' ),
+			'page' => __( 'Pages' ),
+			'anth_imported_item' => __( 'Imported Items', 'anthologize' )
+		);
+		
+		return apply_filters( 'anth_available_post_types', $types );		
+	}
 
 	function add_item_to_part( $item_id, $part_id ) {
-		global $wpdb;
+		global $wpdb, $current_user;
 
 		if ( !(int)$last_item = get_post_meta( $part_id, 'last_item', true ) )
 			$last_item = 0;
 
 		$last_item++;
-		$post = get_post( $item_id );
+		$the_item = get_post( $item_id );
 		$part = get_post( $part_id );
 
 		$args = array(
 		  'menu_order' => $last_item,
-		  'comment_status' => $post->comment_status,
-		  'ping_status' => $post->ping_status,
-		  'pinged' => $post->pinged,
-		  'post_author' => $post->post_author,
-		  'post_content' => $post->post_content,
-		  'post_date' => $post->post_date,
-		  'post_date_gmt' => $post->post_date_gmt,
-		  'post_excerpt' => $post->post_excerpt,
+		  'comment_status' => $the_item->comment_status,
+		  'ping_status' => $the_item->ping_status,
+		  'pinged' => $the_item->pinged,
+		  'post_author' => $current_user->ID,
+		  'post_content' => $the_item->post_content,
+		  'post_date' => $the_item->post_date,
+		  'post_date_gmt' => $the_item->post_date_gmt,
+		  'post_excerpt' => $the_item->post_excerpt,
 		  'post_parent' => $part_id,
-		  'post_password' => $post->post_password,
+		  'post_password' => $the_item->post_password,
 		  'post_status' => $part->post_status, // post_status is set to the post_status of the parent part
-		  'post_title' => $post->post_title,
+		  'post_title' => $the_item->post_title,
 		  'post_type' => 'anth_library_item',
-		  'to_ping' => $post->to_ping, // todo: tags and categories
+		  'to_ping' => $the_item->to_ping, // todo: tags and categories
 		);
 
 		if ( !$imported_item_id = wp_insert_post( $args ) )
 			return false;
+		
+		// Update the parent project's Date Modified field to right now
+		$this->update_project_modified_date();
 
 		// Author data
-		$user = get_userdata( $post->post_author );
+		$user = get_userdata( $the_item->post_author );
 
 		if ( !$author_name = get_post_meta( $item_id, 'author_name', true ) )
 			$author_name = $user->display_name;
 		$author_name_array = array( $author_name );
 
-		update_post_meta( $imported_item_id, 'author_name', $author_name );
-		update_post_meta( $imported_item_id, 'author_name_array', $author_name_array );
+		$anthologize_meta = apply_filters( 'anth_add_item_postmeta', array(
+			'author_name' => $author_name,
+			'author_name_array' => $author_name_array,
+			'author_id' => $the_item->post_author,
+			'original_post_id' => $item_id
+		) );
+		
+		update_post_meta( $imported_item_id, 'anthologize_meta', $anthologize_meta );
+		
+		update_post_meta( $imported_item_id, 'author_name', $author_name ); // Deprecated - please use anthologize_meta
+		update_post_meta( $imported_item_id, 'author_name_array', $author_name_array ); // Deprecated - please use anthologize_meta
 
 		return $imported_item_id;
+	}
+	
+	function update_project_modified_date() {
+		$project_post = get_post( $this->project_id );
+		$project_args = array(
+			'ID' => $this->project_id,
+            'post_modified' => date( "Y-m-d G:H:i" ),
+            'post_modified_gmt' => gmdate( "Y-m-d G:H:i" )
+		);
+		wp_update_post( $project_args );
 	}
 
 	function add_new_part( $part_name ) {
@@ -260,12 +324,23 @@ class Anthologize_Project_Organizer {
 		// Store the menu order of the last item to enable easy moving later on
 		update_post_meta( $this->project, 'last_item', $last_item );
 
+		$this->update_project_modified_date();
+
 		return true;
 	}
 
 	function list_existing_parts() {
 
-		query_posts( 'post_type=anth_part&order=ASC&orderby=menu_order&post_parent=' . $this->project_id );
+		$args = array(
+			'post_type' => 'anth_part',
+			'order' => 'ASC',
+			'orderby' => 'menu_order',
+			'post_per_page' => -1,
+			'showposts' => -1,
+			'post_parent' => $this->project_id
+		);
+
+		query_posts( $args );
 
 		if ( have_posts() ) {
 			while ( have_posts() ) {
@@ -282,12 +357,12 @@ class Anthologize_Project_Organizer {
 				?>
 					<li class="part" id="part-<?php echo $part_id ?>">
 						<h3 class="part-header"><noscript><a href="admin.php?page=anthologize&action=edit&project_id=<?php echo $this->project_id ?>&move_up=<?php echo $part_id ?>">&uarr;</a> <a href="admin.php?page=anthologize&action=edit&project_id=<?php echo $this->project_id ?>&move_down=<?php echo $part_id ?>">&darr;</a> </noscript>
-
 						<span class="part-title-header"><?php the_title() ?></span>
 
 						<div class="part-buttons">
 							<a href="post.php?post=<?php the_ID() ?>&action=edit&return_to_project=<?php echo $this->project_id ?>"><?php _e( 'Edit', 'anthologize' ) ?></a> |
-							<a href="admin.php?page=anthologize&action=edit&project_id=<?php echo $this->project_id ?>&remove=<?php the_ID() ?>" class="remove"><?php _e( 'Remove', 'anthologize' ) ?></a>
+							<a href="admin.php?page=anthologize&action=edit&project_id=<?php echo $this->project_id ?>&remove=<?php the_ID() ?>" class="remove"><?php _e( 'Remove', 'anthologize' ) ?></a> |
+							<a href="#collapse" class="collapsepart"> - </a> 
 						</div>
 
 						</h3>
@@ -338,14 +413,50 @@ class Anthologize_Project_Organizer {
 
 		$args = array(
 			'post_type' => array('post', 'page', 'anth_imported_item' ),
-			'posts_per_page' => -1
+			'posts_per_page' => -1,
+			'orderby' => 'post_title',
+			'order' => 'DESC'
 		);
-
-		if ( $cterm = $_COOKIE['anth-term'] ) {
-			if ( $cfilter = $_COOKIE['anth-filter'] ) {
-				$t_or_c = ( $cfilter == 'tag' ) ? 'tag' : 'cat';
-	        	$args[$t_or_c] = $cterm;
+				
+		$cfilter = ( isset( $_COOKIE['anth-filter'] ) ) ? $_COOKIE['anth-filter'] : false;
+		
+		if ( $cfilter == 'date' ) {
+			$startdate = mysql_real_escape_string($_COOKIE['anth-startdate']);
+			$enddate = mysql_real_escape_string($_COOKIE['anth-enddate']);				
+							
+			$date_range_where = '';
+			if (strlen($startdate) > 0){
+			$date_range_where = " AND post_date >= '".$startdate."'";
 			}
+			if (strlen($enddate) > 0){
+			$date_range_where .= " AND post_date <= '".$enddate."'";
+			}
+
+			$where_func = '$where .= "'.$date_range_where.'"; return $where;'; 
+			$filter_where = create_function('$where', $where_func);
+			add_filter('posts_where', $filter_where);
+		} else {
+		
+			$cterm = ( isset( $_COOKIE['anth-term'] ) ) ? $_COOKIE['anth-term'] : false;
+					
+			if ( $cterm ) {
+				if ( $cfilter ) {
+					switch( $cfilter ) {
+						case 'tag' :
+							$filtertype = 'tag';
+							break;
+						case 'category' :
+							$filtertype = 'cat';
+							break;
+						case 'post_type' :
+							$filtertype = 'post_type';
+							break;
+					}
+					
+					$args[$filtertype] = $cterm;
+				}
+			}
+
 		}
 
 		$big_posts = new WP_Query( $args );
@@ -367,8 +478,6 @@ class Anthologize_Project_Organizer {
 		$items = get_post_meta( $part_id, 'items', true );
 
 		$item_query = new WP_Query( 'post_type=items&post_parent=' . $part_id );
-
-//		print_r($item_query->query());
 
 		$sql = "SELECT id, post_title FROM wp_posts WHERE post_type = 'page' OR post_type = 'post' OR post_type = 'anth_imported_item'";
 		$ids = $wpdb->get_results($sql);
@@ -405,7 +514,7 @@ class Anthologize_Project_Organizer {
 			'post_type' => 'anth_library_item',
 			'posts_per_page' => -1,
 			'orderby' => 'menu_order',
-			'order' => ASC
+			'order' => 'ASC'
 		);
 
 		$items_query = new WP_Query( $args );
@@ -490,22 +599,23 @@ class Anthologize_Project_Organizer {
 		}
 
 		if ( true === $new_post ) {
-            $add_item_result = $this->add_item_to_part( $post_id, $dest_id );
-			if (false === $add_item_result)
+			$add_item_result = $this->add_item_to_part( $post_id, $dest_id );
+			if (false === $add_item_result) {
 				return false;
-            $post_id = $add_item_result;
-            $dest_seq[$post_id] = $dest_seq['new_new_new'];
-            unset($dest_seq['new_new_new']);
-        } else {
-            $post_params = Array('ID' => $post_id,
-                                 'post_parent' => $dest_id);
-            $update_item_result = wp_update_post($post_params);
+			}
+			$post_id = $add_item_result;
+      // $dest_seq[$post_id] = $dest_seq['new_new_new'];
+      // unset($dest_seq['new_new_new']);
+		} else {
+			$post_params = Array('ID' => $post_id,
+				'post_parent' => $dest_id);
+			$update_item_result = wp_update_post($post_params);
 			if (0 === $update_item_result) {
 				return false;
-            }
-            $post_id = $update_item_result;
-            $this->rearrange_items( $source_seq );
-        }
+			}
+			$post_id = $update_item_result;
+			$this->rearrange_items( $source_seq );
+		}
 
         // not really any point in checking for errors at this point
         // Since the insert succeeded
@@ -514,7 +624,7 @@ class Anthologize_Project_Organizer {
 		// All items require the destination siblings to be reordered
 /*		if ( !$this->rearrange_items( $dest_seq ) )
     return false;*/
-        $this->rearrange_items( $dest_seq );
+		//$this->rearrange_items( $dest_seq );
 
 		return $post_id;
 	}
@@ -525,6 +635,8 @@ class Anthologize_Project_Organizer {
 			$q = "UPDATE $wpdb->posts SET menu_order = %d WHERE ID = %d";
 			$post_up_query = $wpdb->query( $wpdb->prepare( $q, $pos, $item_id ) );
 		}
+		
+		$this->update_project_modified_date();
 
 		return true;
 	}
@@ -533,6 +645,8 @@ class Anthologize_Project_Organizer {
 		// Git ridda the post
 		if ( !wp_delete_post( $id ) )
 			return false;
+		
+		$this->update_project_modified_date();
 
 		return true;
 	}
@@ -579,6 +693,8 @@ class Anthologize_Project_Organizer {
 
 		update_post_meta( $append_parent, 'author_name', $author_name );
 		update_post_meta( $append_parent, 'author_name_array', $author_name_array );
+
+		$this->update_project_modified_date();
 
 		return true;
 	}
