@@ -43,8 +43,26 @@ class TeiAPI {
 		// and exposes it as the attribute $tei
 		$this->tei = new DOMDocument();
 
-		$tei_dom = new TeiDom($_POST);
 
+		//setup options for TEIDOM
+		$ops = array('includeStructuredSubjects' => true, //Include structured data about tags and categories
+				'includeItemSubjects' => true, // Include basic data about tags and categories
+				'includeCreatorData' => true, // Include basic data about creators
+				'includeStructuredCreatorData' => true, //include structured data about creators
+				'includeOriginalPostData' => true, //include data about the original post (true to use tags and categories)
+				'checkImgSrcs' => true, //whether to check availability of image sources
+				'linkToEmbeddedObjects' => false,
+				'indexSubjects' => false,
+				'indexCategories' => false,
+				'indexTags' => false,
+				'indexAuthors' => false,
+				'indexImages' => false,
+				);
+
+
+		$ops['outputParams'] = $_SESSION['outputParams'];
+
+		$tei_dom = new TeiDom($_SESSION, $ops);
 		$this->tei->loadXML($tei_dom->getTeiString());
 
 		$this->xpath = new DOMXpath($this->tei);
@@ -58,7 +76,7 @@ class TeiAPI {
 	 * Return document title/subtitle.
 	 *
 	 * /tei:TEI/tei:text/tei:front/tei:titlePage/tei:docTitle/tei:titlePart[@type='".$type."']/text()
-	 * 
+	 *
 	 */
 
 	public function get_book_title($type = 'main') {
@@ -73,13 +91,13 @@ class TeiAPI {
 	* /tei:TEI/tei:text/tei:front/tei:titlePage/tei:docAuthor/text()
 	*
 	*/
-	
+
 	public function get_book_author(){
 
 		return $this->xpath->query("/tei:TEI/tei:text/tei:front/tei:titlePage/tei:docAuthor")->item(0)->textContent;
 
 	}
-	
+
 	public function get_availability(){
 
 		return $this->xpath->query("/tei:TEI/tei:teiHeader/tei:fileDesc/tei:publicationStmt/tei:availability")->item(0)->textContent;

@@ -28,24 +28,50 @@
 * @package anthologize
 */
 
+
 //error_reporting(0);
 
-$class_tei = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . 'pdf' . DIRECTORY_SEPARATOR . 'class-tei.php';
-$class_pdf = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . 'pdf' . DIRECTORY_SEPARATOR . 'class-pdf.php';
 
-require_once($class_tei);
+$class_pdf = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR .  'pdf' . DIRECTORY_SEPARATOR . 'class-pdf.php';
+
+include_once(ANTHOLOGIZE_TEIDOM_PATH);
+include_once(ANTHOLOGIZE_TEIDOMAPI_PATH);
+
+
+
 require_once($class_pdf);
 
 function main() {
 
-	$tei_master = new TeiAPI();
+$ops = array('includeStructuredSubjects' => false, //Include structured data about tags and categories
+		'includeItemSubjects' => false, // Include basic data about tags and categories
+		'includeCreatorData' => false, // Include basic data about creators
+		'includeStructuredCreatorData' => false, //include structured data about creators
+		'includeOriginalPostData' => true, //include data about the original post (true to use tags and categories)
+		'checkImgSrcs' => true, //whether to check availability of image sources
+		'linkToEmbeddedObjects' => true,
+		'indexSubjects' => false,
+		'indexCategories' => false,
+		'indexTags' => false,
+		'indexAuthors' => false,
+		'indexImages' => false,
+		);
+
+
+$ops['outputParams'] = $_SESSION['outputParams'];
+
+
+	$tei = new TeiDom($_SESSION, $ops);
+
+
+	$tei_master = new TeiApi($tei);
 
 	$pdf = new TeiPdf($tei_master);
 
 	//header('Content-type: application/pdf');
 	$pdf->write_pdf();
 
-}	
+}
 
 main();
 die();
