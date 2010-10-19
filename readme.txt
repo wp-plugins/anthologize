@@ -1,10 +1,10 @@
 === Plugin Name ===
-Contributors: oneweekonetool, boonebgorges, digitaleffie, gossettphd, janaremy, jcmeloni, jeremyboggs, knoxdw, patrickmj, sramsay, zmccune, chnm
+Contributors: oneweekonetool, boonebgorges, digitaleffie, gossettphd, janaremy, jcmeloni, jeremyboggs, knoxdw, patrickmj, patrickrashleigh, sramsay, zmccune, chnm
 Donate link: http://anthologize.org/
-Tags: book, pdf, tei, epub, publish, rtf, ebook
+Tags: book, pdf, tei, epub, publish, ebook
 Requires at least: 3.0
 Tested up to: 3.0.1
-Stable tag: 0.4-alpha
+Stable tag: 0.5-alpha
 
 Use the power of WordPress to transform your content into a book.
 
@@ -31,6 +31,22 @@ If you're upgrading manually from a previous version of Anthologize, please be s
 1. The Anthologize Project Organizer screen
 
 == Changelog ==
+
+= 0.5-alpha =
+* Code name "Gabardine"
+* anthologize_register_format() API allows third-party developers to register their output-format plugins and options
+* Newly added theming functions allow plugin developers to use familiar WordPress loops for creating new output formats
+* Improved character encoding all-around
+* Increased support for Korean, Japanese, Chinese text
+* RTF export format discontinued in favor of a more stable HTML output (RTF facilities will likely reappear in a future version).
+* New post filters on the project organizer screen: filter by date, filter by post type
+* Minimize/maximize parts to make project editing easier
+* Add multiple items to parts by dragging the Posts header on the project organizer screen
+* Linked Table of Contents and better pagination in PDF
+* Improved support for Gravatars in exports
+* Methods added to the TEI class that allow for some automated indexing
+* Many bugfixes and stability enhancements
+
 
 = 0.4-alpha =
 * Better PHP error handling for increased export reliability

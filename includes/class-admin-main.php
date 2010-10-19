@@ -10,15 +10,11 @@ class Anthologize_Admin_Main {
 	 */
 	function anthologize_admin_main () {
 
-		$this->project_id = $project_id;
-
-		$project = get_post( $project_id );
-
-		$this->project_name = $project->post_title;
-
 		add_action( 'admin_init', array ( $this, 'init' ) );
 
 		add_action( 'admin_menu', array( $this, 'dashboard_hooks' ) );
+
+		add_action( 'admin_notices', array( $this, 'version_nag' ) );
 
 	}
 
@@ -39,8 +35,11 @@ class Anthologize_Admin_Main {
 	function dashboard_hooks() {
 		global $menu;
 
+		if ( !current_user_can( 'manage_options' ) )
+			return;
+
 		$menu[57] = array(
-			1 => read,
+			1 => 'read',
 			2 => 'separator-anthologize',
 			4 => 'wp-menu-separator'
 		);
@@ -51,7 +50,7 @@ class Anthologize_Admin_Main {
 		$this->add_admin_menu_page( array(
 			'menu_title' => __( 'Anthologize', 'anthologize' ),
 			'page_title' => __( 'Anthologize', 'anthologize' ),
-			'access_level' => 10, 'file' => 'anthologize',
+			'access_level' => 'manage_options', 'file' => 'anthologize',
 			'function' => array( $this, 'display'),
 			'position' => 56
 		) );
@@ -69,6 +68,8 @@ class Anthologize_Admin_Main {
 			add_action( "admin_print_styles", array( $this, 'load_styles' ) );
 			add_action( "admin_print_scripts", array( $this, 'load_scripts' ) );
 		}
+
+
 	}
 
 	// Borrowed, with much love, from BuddyPress. Allows us to put Anthologize way up top.
@@ -119,6 +120,7 @@ class Anthologize_Admin_Main {
     	wp_enqueue_script( 'jquery-ui-core');
     	wp_enqueue_script( 'jquery-ui-sortable');
     	wp_enqueue_script( 'jquery-ui-draggable');
+			wp_enqueue_script( 'jquery-ui-datepicker', WP_PLUGIN_URL . '/anthologize/js/jquery-ui-datepicker.js');
     	wp_enqueue_script( 'jquery-cookie', WP_PLUGIN_URL . '/anthologize/js/jquery-cookie.js' );
     	wp_enqueue_script( 'blockUI-js', WP_PLUGIN_URL . '/anthologize/js/jquery.blockUI.js' );
     	wp_enqueue_script( 'anthologize_admin-js', WP_PLUGIN_URL . '/anthologize/js/anthologize_admin.js' );
@@ -127,7 +129,7 @@ class Anthologize_Admin_Main {
 
 	function load_styles() {
     	wp_enqueue_style( 'anthologize-css', WP_PLUGIN_URL . '/anthologize/css/project-organizer.css' );
-
+			wp_enqueue_style( 'jquery-ui-datepicker-css', WP_PLUGIN_URL . '/anthologize/css/jquery-ui-1.7.3.custom.css');
 	}
 
 	function load_project_organizer( $project_id ) {
@@ -158,13 +160,13 @@ class Anthologize_Admin_Main {
 			'post_type' => 'anth_part',
 			'posts_per_page' => -1,
 			'orderby' => 'menu_order',
-			'order' => ASC
+			'order' => 'ASC'
 		);
 
-		$items_query = new WP_Query( $args );
+		$parts_query = new WP_Query( $args );
 
-		if ( $posts = $items_query->get_posts() ) {
-            return $posts;
+		if ( $parts = $parts_query->get_posts() ) {
+            return $parts;
 		}
 
 	}
@@ -187,15 +189,15 @@ class Anthologize_Admin_Main {
         			'post_type' => 'anth_library_item',
         			'posts_per_page' => -1,
         			'orderby' => 'menu_order',
-        			'order' => ASC
+        			'order' => 'ASC'
         		);
 
         		$items_query = new WP_Query( $args );
 
                 // May need optimization
-        		if ( $posts = $items_query->get_posts() ) {
-                    foreach($posts as $post) {
-                        $items[] = $post;
+        		if ( $child_posts = $items_query->get_posts() ) {
+                    foreach($child_posts as $child_post) {
+                        $items[] = $child_post;
                     }
         		}
             }
@@ -207,14 +209,17 @@ class Anthologize_Admin_Main {
 	function display() {
 //		print_r($_GET); die();
 
-		$project = get_post( $_GET['project_id'] );
+		if ( isset( $_GET['project_id'] ) )
+			$project = get_post( $_GET['project_id'] );
 
-        if ( $_GET['action'] == 'delete' && $project ) {
-			wp_delete_post($project->ID);
-		}
+		if ( isset( $_GET['action'] ) ) {
+			if ( $_GET['action'] == 'delete' && $project ) {
+				wp_delete_post($project->ID);
+			}
 
-		if ( $_GET['action'] == 'edit' && $project ) {
-			$this->load_project_organizer( $_GET['project_id'] );
+			if ( $_GET['action'] == 'edit' && $project ) {
+				$this->load_project_organizer( $_GET['project_id'] );
+			}
 		}
 
 		if (
@@ -278,7 +283,7 @@ class Anthologize_Admin_Main {
             </thead>
 			<tbody>
 				<?php while ( have_posts() ) : the_post(); ?>
-
+				
 					<tr>
 						<tr>
             			<th scope="row" class="check-column">
@@ -318,11 +323,10 @@ class Anthologize_Admin_Main {
 
                         <td scope="row anthologize-number-items">
                             <?php $items = $this->get_project_items();  echo count($items); ?>
-
 						</td>
 
 						<td scope="row anthologize-date-created">
-						    <?php the_date(); ?>
+						    <?php global $post; echo date( "F j, Y", strtotime( $post->post_date ) ) ?>
 						</td>
 
 						<td scope="row anthologize-date-modified">
@@ -417,21 +421,21 @@ class Anthologize_Admin_Main {
         // check user permissions
         if ( !current_user_can('edit_post', $post_id) ) return $post_id;
 
-        $current_data = get_post_meta($post_id, 'anthologize_meta', TRUE);
+		if ( !$item_id = $_POST['item_id'] )
+			return false;
 
-        $new_data = $_POST['anthologize_meta'];
+        if ( !$new_data = $_POST['anthologize_meta'] )
+        	$new_data = array();
 
-        if ( $current_data )
-    	{
-    		if ( is_null($new_data) ) delete_post_meta($post_id,'anthologize_meta');
-    		else update_post_meta($post_id,'anthologize_meta',$new_data);
-			update_post_meta( $post_id, 'author_name', $new_data['author_name'] );
-    	}
-    	elseif ( !is_null($new_data) )
-    	{
-    		add_post_meta($post_id,'anthologize_meta',$new_data,TRUE);
-			update_post_meta( $post_id, 'author_name', $new_data['author_name'] );
-    	}
+		if ( !$anthologize_meta = get_post_meta( $item_id, 'anthologize_meta', true ) )
+			$anthologize_meta = array();
+
+		foreach( $new_data as $key => $value ) {
+			$anthologize_meta[$key] = maybe_unserialize( $value );
+		}
+
+		update_post_meta($post_id,'anthologize_meta', $anthologize_meta);
+		update_post_meta( $post_id, 'author_name', $new_data['author_name'] );
 
         add_filter('redirect_post_location', array($this , 'item_meta_redirect'));
     	return $post_id;
@@ -530,11 +534,32 @@ class Anthologize_Admin_Main {
             	<input type="hidden" name="new_part" value="1" />
             <?php endif; ?>
 
+            <?php if ( isset( $post->ID ) ) : ?>
+            	<input type="hidden" name="item_id" value="<?php echo $post->ID ?>" />
+            <?php endif; ?>
+
             <input type="hidden" name="menu_order" value="<?php echo $post->menu_order; ?>">
             <input type="hidden" name="anthologize_noncename" value="<?php echo wp_create_nonce(__FILE__); ?>" />
         </div>
     <?php
     }
+
+
+
+	function version_nag() {
+		global $wp_version;
+
+		?>
+
+		<?php if ( version_compare( $wp_version, '3.0', '<' ) ) : ?>
+		<div id="message" class="updated fade">
+			<p style="line-height: 150%"><?php printf( __( "<strong>Anthologize will not work with your version of WordPress</strong>. You are currently running version WordPress v%s, and Anthologize requires version 3.0 or greater. Please upgrade WordPress if you'd like to use Anthologize. ", 'buddypress' ), $wp_version ) ?></p>
+		</div>
+		<?php endif; ?>
+
+		<?php
+	}
+
 }
 
 endif;

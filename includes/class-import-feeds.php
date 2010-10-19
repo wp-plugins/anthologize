@@ -182,8 +182,6 @@ class Anthologize_Import_Feeds_Panel {
 
 	function import_item( $item ) {
 		global $current_user;
-		//echo "<pre>";
-		//print_r($item);die();
 
 		$tags = array();
 
@@ -191,9 +189,9 @@ class Anthologize_Import_Feeds_Panel {
 			if ( $cat->term )
 				$tags[] = $cat->term;
 		}
-
+		
 		$args = array(
-			'post_status' => 'publish',
+			'post_status' => 'draft',
 			'post_type' => 'anth_imported_item',
 			'post_author' => $current_user->ID,
 			'guid' => $item['permalink'],
@@ -204,6 +202,12 @@ class Anthologize_Import_Feeds_Panel {
 			'post_title' => $item['title'],
 			'tags_input' => $tags
 		);
+		
+		if ( isset( $item['created_date'] ) ) {
+			$original_post_date = date( "Y-m-d H:i:s", strtotime( $item['created_date'] ) );
+			$args['post_date'] = $original_post_date;
+			$args['post_date_gmt'] = $original_post_date;
+		}
 
 		$post_id = wp_insert_post( $args );
 
@@ -218,9 +222,6 @@ class Anthologize_Import_Feeds_Panel {
 
 endif;
 
-if ( isset( $_GET['project_id'] ) )
-	$project_id = $_GET['project_id'];
-
-$import_feeds_panel = new Anthologize_Import_Feeds_Panel( $project_id );
+$import_feeds_panel = new Anthologize_Import_Feeds_Panel();
 
 ?>

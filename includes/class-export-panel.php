@@ -13,7 +13,7 @@ class Anthologize_Export_Panel {
 
 		$this->projects = $this->get_projects();
 
-		if ( !$project_id ) {
+		if ( !isset( $project_id ) ) {
 			if ( isset( $_GET['project_id'] ) ) {
 				$project_id = $_GET['project_id'];
 			} else {
@@ -23,10 +23,18 @@ class Anthologize_Export_Panel {
 		}
 
 		$this->project_id = $project_id;
+		
+		$export_step = ( isset( $_POST['export-step'] ) ) ? $_POST['export-step'] : '1';
+		
+		if ( $export_step != '3' )
+			$this->display();
 	}
 
 	function display() {
 		$project_id = $this->project_id;
+		
+		if ( isset( $_POST['export-step'] ) )
+			$this->save_session();
 
 		$options = get_post_meta( $project_id, 'anthologize_meta', true );
 
@@ -52,8 +60,6 @@ class Anthologize_Export_Panel {
 		$dedication = $options['dedication'];
 
 		$acknowledgements = $options['acknowledgements'];
-
-        $zip_is_enabled = true;
 
 		?>
 		<div class="wrap anthologize">
@@ -138,7 +144,7 @@ class Anthologize_Export_Panel {
 			<?php $project_id = $_POST['project_id']; ?>
 			<?php $project = get_post( $project_id ); ?>
 
-			<form action="admin.php?page=anthologize/includes/class-export-panel.php&project_id=<?php echo $project_id ?>&noheader=true" method="post">
+			<form action="" method="post">
 
 				<?php _e( 'Title', 'anthologize' ) ?> <input type="text" name="post-title" id="post-title" value="<?php echo $project->post_title ?>" size="100"/>
 
@@ -153,54 +159,34 @@ class Anthologize_Export_Panel {
 					<p><strong><?php _e( 'Acknowledgements', 'anthologize' ) ?></strong></p>
 					<textarea id="acknowledgements" name="acknowledgements" cols=35 rows=15><?php echo $acknowledgements ?></textarea>
 				</div>
-
+				
+				<div style="clear: both;"></div>
+				
+				<div id="export-format">
+					<h4><?php _e( 'Export Format', 'anthologize' ) ?></h4>
+					
+					<?php $this->export_format_list() ?>
+				</div>
+				
+				<input type="hidden" name="export-step" value="2" />
 
 				<div style="clear: both;"> </div>
 
-				<h3><?php _e( 'Publishing Options', 'anthologize' ) ?></h3>
+				<div class="anthologize-button" id="export-next"><input type="submit" name="submit" id="submit" value="<?php _e( 'Next', 'anthologize' ) ?>" /></div>
+
+			</form>
+			
+			<?php elseif ( $_POST['export-step'] == 2 ) : ?>
+								
+				<form action="admin.php?page=anthologize/includes/class-export-panel.php&project_id=<?php echo $project_id ?>&noheader=true" method="post">
+
+				<h3><?php $this->export_format_options_title() ?></h3>
 				<div id="publishing-options">
-					<div style="width: 150px; float: left; padding: 8px;">
-						<div class="pub-options-title"><?php _e( 'Type', 'anthologize' ) ?></div>
 
-						<?php if ( $zip_is_enabled ) : ?>
-							<input type="radio" name="filetype" value="epub" /> <?php _e( 'ePub', 'anthologize' ) ?><br />
-						<?php else : ?>
-							<input type="radio" name="filetype" value="epub" disabled="disabled" /> <span class="not-enabled"><?php _e( 'ePub requires the PHP Zip library to be enabled. Contact your hosting provider to enable Zip.', 'anthologize' ) ?></span><br />
-						<?php endif; ?>
-						<input type="radio" name="filetype" value="pdf" checked="checked" /> <?php _e( 'PDF', 'anthologize' ) ?><br />
-						<input type="radio" name="filetype" value="tei" /> <?php _e( 'TEI (plus HTML)', 'anthologize' ) ?><br />
+					<?php $this->render_format_options() ?>
 
-						<input type="radio" name="filetype" value="rtf" /> <?php _e( 'RTF', 'anthologize' ) ?>
-					</div>
 
-					<div style="width: 150px; float: left; padding: 8px;">
-						<div class="pub-options-title"><?php _e( 'Page Size', 'anthologize' ) ?></div>
-						<input type="radio" name="page-size" value="letter" checked="checked" /> <?php _e( 'Letter', 'anthologize' ) ?><br />
-						<input type="radio" name="page-size" value="a4" /> <?php _e( 'A4', 'anthologize' ) ?>
-					</div>
-
-					<div style="width: 150px; float: left; padding: 8px;">
-						<div class="pub-options-title"><?php _e( 'Font Size', 'anthologize' ) ?></div>
-						<select name="font-size">
-							<option value="9">9</option>
-							<option value="10">10</option>
-							<option value="11">11</option>
-							<option value="12" selected="selected">12</option>
-							<option value="13">13</option>
-							<option value="14">14</option>
-						</select>
-					</div>
-
-					<div style="width: 150px; float: left; padding: 8px;">
-						<div class="pub-options-title"><?php _e( 'Font Face', 'anthologize' ) ?></div>
-						<select name="font-face">
-							<option value="times" class="serif">Serif</option>
-							<option value="helvetica" class="sans-serif">Sans-serif</option>
-							<option value="courier" class="fixed-width">Fixed-width</option>
-						</select>
-					</div>
-
-					<div style="width: 150px; float: left; padding: 8px;">
+					<div class="export-options-box">
 						<div class="pub-options-title"><?php _e( 'Shortcodes', 'anthologize' ) ?></div>
 						<p><small><?php _e( 'WordPress shortcodes (such as [caption]) can sometimes cause problems with output formats. If shortcode content shows up incorrectly in your output, choose "Disable" to keep Anthologize from processing them.', 'anthologize' ) ?></small></p>
 						<select name="do-shortcodes">
@@ -210,27 +196,18 @@ class Anthologize_Export_Panel {
 					</div>
 
 				</div>
-
-				<input type="hidden" name="cyear" value="<?php echo $_POST['cyear'] ?>" />
-				<input type="hidden" name="cname" value="<?php echo $_POST['cname'] ?>" />
-				<input type="hidden" name="ctype" value="<?php echo $_POST['ctype'] ?>" />
-				<?php if ( $_POST['ctype'] == 'cc' ) : ?>
-					<input type="hidden" name="cctype" value="<?php echo $_POST['cctype'] ?>" />
-				<?php endif; ?>
-				<input type="hidden" name="edition" value="<?php echo $_POST['edition'] ?>" />
-				<input type="hidden" name="authors" value="<?php echo $_POST['authors'] ?>" />
-				<input type="hidden" name="project_id" value="<?php echo $_POST['project_id'] ?>" />
-
-				<input type="hidden" name="export-step" value="2" />
+				
+				<input type="hidden" name="export-step" value="3" />
 
 				<div style="clear: both;"> </div>
 
 				<div class="anthologize-button" id="export-next"><input type="submit" name="submit" id="submit" value="<?php _e( 'Export', 'anthologize' ) ?>" /></div>
+				
+				</form>
+			
 
-			</form>
 
-
-			<?php elseif ( $_POST['export-step'] == 2 ) : ?>
+			<?php elseif ( $_POST['export-step'] == 3 ) : ?>
 				<!-- Where the magic happens -->
 				<?php /* You should never actually get to this point. Method load_template() in anthologize.php should grab all requests with $_POST['filetype'], send a file to the user, and die. If someone ends up here, it means that something has gone awry. */ ?>
 				<p>
@@ -243,7 +220,139 @@ class Anthologize_Export_Panel {
 		<?php
 
 	}
+	
+	function export_format_options_title() {
+		global $anthologize_formats;
+		
+		$format = $_SESSION['filetype'];
+	
+		$title = sprintf( __( '%s Publishing Options', 'anthologize' ), $anthologize_formats[$format]['label'] );
+		
+		echo $title;
+	}
 
+	function save_session() {
+		
+		if ( $_POST['export-step'] == '2' )
+			$_SESSION['outputParams'] = array( 'format' => $_POST['filetype'] );
+		
+		// outputParams need to be reset at step 3 so that
+		// on a refresh null values will overwrite
+		if ( $_POST['export-step'] == '3' )
+			$_SESSION['outputParams'] = array( 'format' => $_SESSION['outputParams']['filetype'] );
+				
+		
+		foreach ( $_POST as $key => $value ) {
+			if ( $key == 'submit' || $key == 'export-step' )
+				continue;
+		
+			if ( $key == '' )
+				echo "OK";
+			
+			if ( $_POST['export-step'] == '3' )
+				$_SESSION['outputParams'][$key] = stripslashes( $value );
+			else
+				$_SESSION[$key] = stripslashes( $value );
+		
+		}
+	
+	}
+	
+	function export_format_list() { 
+		global $anthologize_formats;
+	?>
+		<?php foreach( $anthologize_formats as $name => $fdata ) : ?>
+		
+			<input type="radio" name="filetype" value="<?php echo $name ?>" /> <?php echo $fdata['label'] ?><br />
+					
+		<?php endforeach; ?>
+	
+		<?php do_action( 'anthologize_export_format_list' ) ?>
+
+	<?php
+	}
+	
+	function render_format_options() {
+		global $anthologize_formats;
+		
+		$format = $_SESSION['filetype'];
+		
+		if ( $fdata = $anthologize_formats[$format] ) {
+			$return = '';
+			foreach( $fdata as $oname => $odata ) {
+			
+				if ( $oname == 'label' || $oname == 'loader-path' )
+					continue;
+				
+				if ( !$odata )
+					continue;
+				
+				$default = ( isset( $odata['default'] ) ) ? $odata['default'] : false;
+				
+				$return .= '<div class="export-options-box">'; 
+		
+				$return .= '<div class="pub-options-title">' . $odata['label'] . '</div>';
+				
+				switch( $odata['type'] ) {
+					case 'checkbox':
+						$return .= $this->build_checkbox( $oname, $odata['label'] );
+						break;
+					
+					case 'dropdown':
+						$return .= $this->build_dropdown( $oname, $odata['label'], $odata['values'], $default );
+						break;
+						
+					// Default is a textbox
+					default:
+						$return .= $this->build_textbox( $oname, $odata['label'] );
+						break;
+				}
+				
+				$return .= '</div>';
+				
+			}
+		} else {
+			$return = __( 'This appears to be an invalid export format. Please try again.', 'anthologize' );
+		}
+					
+		echo $return;
+	}
+
+	function build_checkbox( $name, $label ) {
+		
+		$html = '<input name="' . $name . '" id="' . $name .'" type="checkbox">';
+		
+		return apply_filters( 'anthologize_build_checkbox', $html, $name, $label );
+	}
+
+	function build_dropdown( $name, $label, $options, $default ) {
+		// $name is the input name (no spaces, eg 'page-size')
+		// $label is the input label (for display, eg 'Page Size'. Should be internationalizable, eg __('Page Size', 'anthologize')
+		// $options is associative array where keys are option values and values are the text displayed in the option field.
+		// $default is the default option
+						
+		$html = '<select name="' . $name . '">';
+		
+		foreach( $options as $ovalue => $olabel ) {
+			$html .= '<option value="' . $ovalue . '"';
+			
+			if ( $default == $ovalue )
+				$html .= ' selected="selected"';
+						
+			$html .= '>' . $olabel . '</option>';
+		}	
+		
+		$html .= '</select>';
+		
+		return apply_filters( 'anthologize_build_dropdown', $html, $name, $label, $options );
+	}
+	
+	function build_textbox( $name, $label ) {
+					
+		$html = '<input name="' . $name . '" id="' . $name . '" type="text">';
+		
+		return apply_filters( 'anthologize_build_textbox', $html, $name, $label );
+	}
 
 	function load_template() {
 		// The goggles! Zey do nossing!
@@ -269,7 +378,6 @@ class Anthologize_Export_Panel {
 endif;
 
 $export_panel = new Anthologize_Export_Panel();
-$export_panel->display();
 
 
 ?>

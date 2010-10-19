@@ -94,6 +94,14 @@ div.anthologize {
 	width: 250px;
 }
 
+#project-organizer-left-column #datefilter {
+	display: none;
+}
+
+#datefilter label{
+	display: block;
+}
+
 #posts-scrollbox {
 	height: 400px;
 	max-height: 400px;
@@ -198,6 +206,10 @@ div.anthologize {
 }
 
 /* sortable/draggable styles  */
+#anthologize-parts-box .ui-state-disabled {
+	opacity: inherit;
+}
+
 .part-items ul {
 	min-height: 50px;
 }
@@ -233,9 +245,13 @@ a.active-append {
 	text-decoration: underline;
 }
 
+a.collapsepart {
+	text-decoration: none;
+	font-weight: bold;
+	padding-right: 5px;
+}
 
 #export-project-button {
-	//width: auto;
 	border-top-right-radius: 1px;
 	border-top-left-radius: 1px;
 	border-bottom-right-radius: 1px;
@@ -246,6 +262,12 @@ a.active-append {
 	padding: 4px 8px;
 	text-decoration: none;
 
+}
+
+.export-options-box {
+	width: 150px;
+	float: left;
+	padding: 8px;
 }
 
 #blockUISpinner {

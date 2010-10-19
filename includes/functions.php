@@ -7,7 +7,7 @@ function anthologize_save_project_meta() {
 	$project_meta = get_post_meta( $project_id, 'anthologize_meta', true );
 
 	foreach( $_POST as $key => $value ) {
-
+	
 		if ( $key == 'project_id' || $key == 'submit' )
 			continue;
 
@@ -60,5 +60,10 @@ function anthologize_filter_post_content($content) {
 }
 
 add_filter('the_content', 'anthologize_filter_post_content');
+
+
+
+
+
 
 ?>

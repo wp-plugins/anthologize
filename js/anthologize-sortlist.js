@@ -62,6 +62,38 @@ var anthologize = {
 	    jQuery.unblockUI();
     }
   },
+  "addMultiItems": function(event, ui){
+    jQuery.blockUI({css:{width: '12%',top:'40%',left:'45%'},
+                    message: jQuery('#blockUISpinner').show() });
+
+		var dest_seq = {};
+		var item_ids = [];
+		var project_id = anthologize.getProjectId();
+	  var i = 0;
+		ui.item.after(jQuery("#sidebar-posts li").clone().each(function(){
+			var orig_id = anthologize.cleanPostIds(jQuery(this).attr("id"));
+			var added_id = "added-" + orig_id;
+			jQuery(this).attr("id", added_id);
+			item_ids[i] = added_id;
+			i++;
+		}));
+		var startOffset = ui.item.next();
+		var dest_id = ui.item.closest("li.part").attr("id");
+		ui.item.detach();
+		
+    offset = 1;
+    startOffset.siblings().andSelf().each(function(){
+      dest_seq[jQuery(this).attr("id")] = offset;
+			offset++;
+    });
+    var ajax_options = {
+	    "project_id": project_id,
+	    "dest_id": this.cleanPostIds(dest_id),
+	    "item_ids": item_ids,
+	    "dest_seq":  dest_seq,
+    };
+    anth_admin_ajax.place_items(ajax_options);
+	},
   "didSortChange" : function(ajax_options){
     if (! (((ajax_options.src_id == ajax_options.dest_id) || 
            (ajax_options.src_id == null && ajax_options.dest_id == ajax_options.project_id))
@@ -75,6 +107,23 @@ var anthologize = {
 	  jQuery("#sidebar-posts li").draggable({
 	    connectToSortable: ".part-items ul",
 	    helper: "clone",
+	    revert: "invalid",
+	    zIndex: 2700,
+	    distance: 3,
+	    start: function(event, ui){
+	      anthologize.new_item_org_seq_num = jQuery(this).index() + 1;
+	    },
+	    drag: function(event, ui){
+		    if (anthologize.fromNew == false){
+			    anthologize.fromNew = true;
+		    }
+	    }
+	  });
+	  jQuery("#customlinkdiv .part-header").draggable({
+	    connectToSortable: ".part-items ul",
+	    helper: function(){
+				return jQuery("#sidebar-posts").clone();
+			},
 	    revert: "invalid",
 	    zIndex: 2700,
 	    distance: 3,
@@ -146,6 +195,28 @@ var anthologize = {
 			   items.first().find("span.append-sep").addClass("disabled");
 		   }
 	   });
+  },
+  "toggleCollapseCookie": function(id){
+	  var cp = jQuery.cookie('collapsedparts');
+	  var parts = new Array();
+		if (cp){
+			parts = cp.split(',');
+  	}
+	  var partsWithoutId = new Array();
+	  var idFound = false;
+	  for (var i = 0; i < parts.length; i++){
+		  if (parts[i] != id){
+			  partsWithoutId.push(parts[i]);
+		  }else{
+			  idFound = true;
+		  }
+	  }
+	  if (idFound){
+		  jQuery.cookie('collapsedparts', partsWithoutId.join(','));
+	  }else{
+			parts.push(id);
+			jQuery.cookie('collapsedparts', parts.join(','));
+		}
   }
 };
 
@@ -171,7 +242,11 @@ jQuery.fn.anthologizeSortList = function (options){
     },
     stop: function (event, ui){
 	    anthologize.newItem = ui.item;
-      anthologize.callBack(event, ui);
+			if (ui.item.hasClass('part-header')){
+				anthologize.addMultiItems(event, ui);
+			}else{
+      	anthologize.callBack(event, ui);
+			}
       ui.item.removeClass("anthologize-drag-selected");
     },
     receive: function(event, ui){
@@ -266,4 +341,29 @@ jQuery(document).ready(function(){
 	  var post_id = anthologize.cleanPostIds(item.attr("id"));
 	  anth_admin_ajax.merge_items({"project_id":project_id, "post_id":post_id, "child_post_ids":append_items, "merge_seq": merge_seq});
   });
+
+	jQuery("body").delegate("ul.project-parts li.part a.collapsepart", "click", function(){
+		var part = jQuery(this).parents('li.part');
+		part.children("div.part-items").slideToggle('slow', function(){
+			var collapseButton = jQuery(this).parent().find("a.collapsepart");
+			if (collapseButton.text() == ' - '){
+			  collapseButton.text(' + ');
+		  }else{
+				collapseButton.text(' - ');
+			}
+		});
+		anthologize.toggleCollapseCookie(part.attr('id'));
+	});
+	
+	var cp = jQuery.cookie('collapsedparts');
+	if (cp){
+		var parts = cp.split(',');
+		for (var i = 0; i < parts.length; i++){
+	  	var p = jQuery('#' + parts[i]);
+	  	if (p.length > 0){
+		  	p.children("div.part-items").toggle();
+				p.find("a.collapsepart").text(' + ');
+	  	}
+		}
+	}	
 });

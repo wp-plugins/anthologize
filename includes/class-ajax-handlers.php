@@ -9,20 +9,20 @@ class Anthologize_Ajax_Handlers {
     var $project_organizer = null;
 
     function anthologize_ajax_handlers() {
-        add_action( 'wp_ajax_get_tags', array( $this, 'fetch_tags' ) );
-        add_action( 'wp_ajax_get_cats', array( $this, 'fetch_cats' ) );
+        add_action( 'wp_ajax_get_filterby_terms', array( $this, 'get_filterby_terms' ) );
         add_action( 'wp_ajax_get_posts_by', array( $this, 'get_posts_by' ) );
         add_action( 'wp_ajax_place_item', array( $this, 'place_item' ) );
+        add_action( 'wp_ajax_place_items', array( $this, 'place_items' ) );
         add_action( 'wp_ajax_merge_items', array( $this, 'merge_items' ) );
         add_action( 'wp_ajax_get_project_meta', array( $this, 'fetch_project_meta' ) );
     }
 
     function __construct() {
         $this->anthologize_ajax_handlers();
-        $project_id = $_POST['project_id'];
-        if ($this->project_organizer == null){
-            $this->project_organizer = new Anthologize_Project_Organizer($project_id);
-        }
+        $project_id = ( isset( $_POST['project_id'] ) ) ? $_POST['project_id'] : 0;
+                
+        $this->project_organizer = new Anthologize_Project_Organizer($project_id);
+       
     }
 
     function fetch_tags() {
@@ -49,33 +49,97 @@ class Anthologize_Ajax_Handlers {
         die();
     }
 
+	function get_filterby_terms() {
+		$filtertype = $_POST['filtertype'];
+		
+		$terms = array();
+		
+		switch ( $filtertype ) {
+			case 'category' :
+				$cats = get_categories();
+				foreach( $cats as $cat ) {
+					$terms[$cat->term_id] = $cat->name;
+				}
+				break;
+			
+			case 'tag' :
+				$tags = get_tags();
+				foreach( $tags as $tag ) {
+					$terms[$tag->slug] = $tag->name;
+				}
+				break;
+			
+			case 'post_type' :
+				$terms = $this->project_organizer->available_post_types();
+				break;
+		}
+				
+		$terms = apply_filters( 'anth_get_posts_by', $terms, $filtertype );
+		
+		print( json_encode( $terms ) );
+		die();
+	}
+
     function get_posts_by() {
-        $term = $_POST['term'];
-        $tagorcat = $_POST['tagorcat'];
+		$filterby = $_POST['filterby'];
 
-        // Blech
-        $t_or_c = ( $tagorcat == 'tag' ) ? 'tag' : 'cat';
+		$args = array(
+			'post_type' => array('post', 'page', 'anth_imported_item' ),
+			'posts_per_page' => -1,
+			'orderby' => 'post_date',
+			'order' => 'DESC'
+		);
 
-        $args = array(
-            'post_type' => array('post', 'page', 'anth_imported_item' ),
-            $t_or_c => $term,
-            'posts_per_page' => -1
-        );
+		switch ( $filterby ) {
+			case 'date' :
+				$startdate = mysql_real_escape_string($_POST['startdate']);
+				$enddate = mysql_real_escape_string($_POST['enddate']);				
+								
+				$date_range_where = '';
+				if (strlen($startdate) > 0){
+				$date_range_where = " AND post_date >= '".$startdate."'";
+				}
+				if (strlen($enddate) > 0){
+				$date_range_where .= " AND post_date <= '".$enddate."'";
+				}
 
-        query_posts( $args );
+				$where_func = '$where .= "'.$date_range_where.'"; return $where;'; 
+				$filter_where = create_function('$where', $where_func);
+				add_filter('posts_where', $filter_where);
 
+				break;
+			
+			case 'tag' :
+				$args['tag'] = $_POST['term'];
+				break;
+			
+			case 'category' :
+				$args['cat'] = $_POST['term'];
+				break;
+			
+			case 'post_type' :
+				$args['post_type'] = $_POST['term'];
+				break;
+		}
 
-        $the_posts = Array();
+		// Allow plugins to modify the query_post arguments
+		$posts = new WP_Query( apply_filters( 'anth_get_posts_by_query', $args, $filterby ) );
+		
+		$the_posts = Array();
+		while ( $posts->have_posts() ) {
+			$posts->the_post();
+			$the_posts[get_the_ID()] = get_the_title();
+		}
+		if ($filterby == 'date'){
+			remove_filter('posts_where', $filter_where);
+		}
+		
+		$the_posts = apply_filters( 'anth_get_posts_by', $the_posts, $filterby );
+		
+		print(json_encode($the_posts));
 
-        while ( have_posts() ) {
-            the_post();
-            $the_posts[get_the_ID()] = get_the_title();
-        }
-
-        print(json_encode($the_posts));
-
-        die();
-    }
+		die();
+	}
 
     function place_item() {
         $project_id = $_POST['project_id'];
@@ -87,7 +151,7 @@ class Anthologize_Ajax_Handlers {
             header('HTTP/1.1 500 Internal Server Error');
             die();
         }
-
+        
         if ('true' === $_POST['new_post']) {
             $new_item = true;
             $src_part_id = false;
@@ -109,10 +173,54 @@ class Anthologize_Ajax_Handlers {
             header('HTTP/1.1 500 Internal Server Error');
             die();
         } else {
+						if (true == $new_item){
+      				$dest_seq_array[$insert_result] = $dest_seq_array['new_new_new'];
+      				unset($dest_seq_array['new_new_new']);
+						}
+						$this->project_organizer->rearrange_items($dest_seq_array);
             print "{\"post_id\":\"$insert_result\"}";
         }
 
         die();
+    }
+
+		function place_items() {
+			$project_id = $_POST['project_id'];
+
+			$post_ids = $_POST['post_ids'];
+			$post_ids = stripslashes($_POST['post_ids']);
+ 			$post_ids_array = json_decode($post_ids, $assoc=true);
+
+			$dest_part_id = $_POST['dest_id'];
+			$dest_seq = stripslashes($_POST['dest_seq']);
+ 			$dest_seq_array = json_decode($dest_seq, $assoc=true);
+			if ( NULL === $dest_seq_array ) {
+				header('HTTP/1.1 500 Internal Server Error');
+				die();
+			}
+        
+
+			$new_item = true;
+			$src_part_id = false;
+			$src_seq_array = false;
+
+			$ret_ids = array();
+			foreach ($post_ids_array as $position => $post_id){
+				$post_id = str_replace("added-", "", $post_id);
+				$insert_result = $this->project_organizer->insert_item($project_id, $post_id, $new_item, $dest_part_id, $src_part_id, $dest_seq_array, $src_seq_array);
+				if (false === $insert_result) {
+					header('HTTP/1.1 500 Internal Server Error');
+					die();
+				}else{
+					$ret_ids[$post_id] = $insert_result;
+			    $dest_seq_array[$insert_result] = $dest_seq_array[$post_id];
+      		unset($dest_seq_array[$post_id]);
+				}
+			}
+			$this->project_organizer->rearrange_items($dest_seq_array);
+			
+			print json_encode(array("post_ids" => $ret_ids));
+			die();
     }
 
     function merge_items() {
