@@ -80,7 +80,7 @@ class Anthologize_Loader {
 
 	// Load constants
 	function load_constants() {
-		
+
 		if ( !defined( 'ANTHOLOGIZE_TEIDOM_PATH' ) )
 			define( 'ANTHOLOGIZE_TEIDOM_PATH', WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'anthologize' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'class-tei-dom.php' );
 
@@ -122,11 +122,12 @@ class Anthologize_Loader {
 
 		foreach ( $menu as $mkey => $m ) {
 
-			$key = array_search( 'edit.php?post_type=anth_part', $m );
-			$keyb = array_search( 'edit.php?post_type=anth_library_item', $m );
+			$key = array_search( 'edit.php?post_type=anth_part', $m, true );
+			$keyb = array_search( 'edit.php?post_type=anth_library_item', $m, true );
 
-			if ( $key || $keyb )
+			if ( $key || $keyb ) {
 				unset( $menu[$mkey] );
+			}
 		}
 
 		return $menu_order;
@@ -275,6 +276,10 @@ class Anthologize_Loader {
 
 		anthologize_register_format_option( 'pdf', 'font-face', __( 'Font Face', 'anthologize' ), 'dropdown', $d_font_face_pdf, 'Times New Roman' );
 
+		anthologize_register_format_option( 'pdf', 'break-parts', __( 'Page break before parts?', 'anthologize' ), 'checkbox' );
+
+		anthologize_register_format_option( 'pdf', 'break-items', __( 'Page break before items?', 'anthologize' ), 'checkbox' );
+
 		anthologize_register_format_option( 'pdf', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
 
 
@@ -285,7 +290,22 @@ class Anthologize_Loader {
 
 		anthologize_register_format_option( 'epub', 'font-family', __( 'Font Family', 'anthologize' ), 'dropdown', $d_font_face_epub, 'Times New Roman' );
 
-		anthologize_register_format_option( 'epub', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
+		//build the covers list for selection
+		$coversArray = array();
+		$coversArray['none'] = 'None';
+		//scan the covers directory and return the array
+		$filesArray = scandir(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'anthologize' .
+			 DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . 'epub' . DIRECTORY_SEPARATOR . 'covers');
+		foreach($filesArray as $file) {
+			if(! is_dir($file)) {
+				$coversArray[$file] = $file;
+			}
+		}
+
+		anthologize_register_format_option( 'epub', 'cover', __( 'Cover Image', 'anthologize' ), 'dropdown', $coversArray);
+
+		//epub colophon commented out until we get the XSLTs working for it
+		//anthologize_register_format_option( 'epub', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
 
 		// Register HTML
 

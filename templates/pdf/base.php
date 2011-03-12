@@ -32,16 +32,15 @@
 //error_reporting(0);
 
 
-$class_pdf = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR .  'pdf' . DIRECTORY_SEPARATOR . 'class-pdf.php';
-
 include_once(ANTHOLOGIZE_TEIDOM_PATH);
 include_once(ANTHOLOGIZE_TEIDOMAPI_PATH);
+require_once(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . "anthologize" . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'class-anthologizer.php');
+$pdfPath = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'anthologize' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . 'pdf' . DIRECTORY_SEPARATOR ;
+require_once($pdfPath . 'tcpdf' . DIRECTORY_SEPARATOR . 'tcpdf.php');
+require_once($pdfPath .  'class-anthologize-tcpdf.php'); //overrides some methods in TCPDF
+require_once($pdfPath . 'class-pdf-anthologizer.php' );
 
 
-
-require_once($class_pdf);
-
-function main() {
 
 $ops = array('includeStructuredSubjects' => false, //Include structured data about tags and categories
 		'includeItemSubjects' => false, // Include basic data about tags and categories
@@ -57,22 +56,14 @@ $ops = array('includeStructuredSubjects' => false, //Include structured data abo
 		'indexImages' => false,
 		);
 
+$tei = new TeiDom($_SESSION, $ops);
 
-$ops['outputParams'] = $_SESSION['outputParams'];
+$api = new TeiApi($tei);
+$pdfer = new PdfAnthologizer($api);
 
 
-	$tei = new TeiDom($_SESSION, $ops);
 
 
-	$tei_master = new TeiApi($tei);
+$pdfer->output();
 
-	$pdf = new TeiPdf($tei_master);
-
-	//header('Content-type: application/pdf');
-	$pdf->write_pdf();
-
-}
-
-main();
-die();
 ?>

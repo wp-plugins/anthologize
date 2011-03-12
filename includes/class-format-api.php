@@ -39,7 +39,7 @@ class Anthologize_Format_API {
 			'label' => $label,
 			'loader-path' => $loader_path
 		);
-			
+		
 		// Register the format
 		if ( $anthologize_formats[$name] = $new_format )
 			return true;
@@ -63,7 +63,7 @@ class Anthologize_Format_API {
 			'default' => $default
 		);
 		
-		if ( $already_option = $anthologize_formats[$format_name][$option_name] ) {
+		if ( !empty( $anthologize_formats[$format_name][$option_name] ) && $already_option = $anthologize_formats[$format_name][$option_name] ) {
 			// Parse the registered options with the existing ones
 			$option = wp_parse_args( $option, $already_option );
 			extract( $options, EXTR_SKIP );

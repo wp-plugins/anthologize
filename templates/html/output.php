@@ -8,16 +8,17 @@ global $api;
 //TODO: simplify and condense these options
 
 $ops = array('includeStructuredSubjects' => true, //Include structured data about tags and categories
+		'includeComments' => false,
 		'includeItemSubjects' => true, // Include basic data about tags and categories
 		'includeCreatorData' => true, // Include basic data about creators
 		'includeStructuredCreatorData' => true, //include structured data about creators
 		'includeOriginalPostData' => true, //include data about the original post (true to use tags and categories and creator data)
-		'checkImgSrcs' => true, //whether to check availability of image sources
+		'checkImgSrcs' => false, //whether to check availability of image sources
 		'linkToEmbeddedObjects' => false,
 		'indexSubjects' => false,
 		'indexCategories' => false,
 		'indexTags' => false,
-		'indexPeople' => true,
+		'indexPeople' => false,
 		'indexImages' => false,
 		);
 
@@ -124,28 +125,6 @@ if( isset($ops['outputParams']['download']) ) {
 	}
 	?>
 
-	<div class='anth-index'>
-		<h1>Author Index</h1>
-		<?php anth_index('persons'); ?>
-		<?php while(anth_index_items() ) : ?>
-			<?php anth_index_item(); ?>
-			<h3><?php anth_index_the_item_label(); ?></h3>
-			<?php while(anth_index_item_targets() ): ?>
-				<?php anth_index_item_target(); ?>
-				<?php if(anth_index_item_get_the_target('role') == 'originalAuthor'): ?>
-				<h5><a href="#<?php anth_index_item_the_target('ref') ?>"><?php anth_index_item_the_target(); ?></a></h5>
-				<?php endif; ?>
-
-			<?php endwhile; ?>
-
-
-		<?php endwhile; ?>
-
-
-
-
-
-	</div>
 
 
 	</body>

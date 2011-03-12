@@ -20,6 +20,7 @@ class TeiDom {
 
 	public $dom;
 	public $xpath;
+	public $tidy = false;
 
 	public $bodyNode;
 	public $projectData;
@@ -28,6 +29,12 @@ class TeiDom {
 
 
 	function __construct($sessionArray, $ops = array()) {
+		@apply_filters('init');
+		//the anthologize filter echos content, which clobbers exports
+		remove_filter('the_content', 'anthologize_filter_post_content');
+		if(class_exists('Tidy')) {
+			$this->tidy = new Tidy();
+		}
 
 		foreach($ops as $op=>$value) {
 			$this->$op = $value;
@@ -61,6 +68,12 @@ class TeiDom {
 		$this->dom->preserveWhiteSpace = false;
 		$this->setXPath();
 
+		$this->bodyNode = $this->xpath->query("//tei:body")->item(0);
+		$this->frontNode = $this->xpath->query("//tei:front")->item(0);
+		$this->backNode = $this->xpath->query("//tei:back")->item(0);
+		$this->structuredSubjectList = $this->xpath->query("//tei:list[@xml:id='subjects']")->item(0);
+		$this->structuredPersonList = $this->xpath->query("//tei:sourceDesc/tei:listPerson")->item(0);
+
 		$this->buildProjectData();
 		$this->addOutputDesc();
 		$this->addPublicationStmt();
@@ -70,19 +83,14 @@ class TeiDom {
 
 		$this->sanitizeMedia();
 		$this->addBackMatter();
-
+		//all done filtering, so add anthologize filter back in
+		add_filter('the_content', 'anthologize_filter_post_content');
 	}
 	public function setXPath() {
 		$this->xpath = new DOMXPath($this->dom);
 		$this->xpath->registerNamespace('tei', TEI);
 		$this->xpath->registerNamespace('html', HTML);
 		$this->xpath->registerNamespace('anth', ANTH);
-		$this->bodyNode = $this->xpath->query("//tei:body")->item(0);
-		$this->frontNode = $this->xpath->query("//tei:front")->item(0);
-		$this->backNode = $this->xpath->query("//tei:back")->item(0);
-		$this->structuredSubjectList = $this->xpath->query("//tei:list[@xml:id='subjects']")->item(0);
-		$this->structuredPersonList = $this->xpath->query("//tei:sourceDesc/tei:listPerson")->item(0);
-
 	}
 
 
@@ -104,9 +112,7 @@ class TeiDom {
 			$newPart = $this->newPart($partObject);
 			$newPart->setAttribute('n', $partNumber);
 			$newPart->setAttribute('xml:id', "body-$partNumber");
-			if($this->includeDeepDocumentData) {
 
-			}
 			$args = array(
 				'post_parent'=>$partObject->ID,
 				'post_type'=>'anth_library_item',
@@ -143,7 +149,7 @@ class TeiDom {
 
 		$outParamsNode = $this->xpath->query("//anth:outputParams")->item(0);
 
-		foreach($this->outputParams as $name=>$value) {
+		foreach($this->projectData['outputParams'] as $name=>$value) {
 			$newParam = $this->dom->createElementNS(ANTH, 'param', $value);
 			$newParam->setAttribute('name', $name);
 			$outParamsNode->appendChild($newParam);
@@ -160,6 +166,7 @@ class TeiDom {
 					break;
 
 					case 'letter':
+					case 'Letter':
 						$widthParam->nodeValue = '8.5in';
 						$heightParam->nodeValue = '11in';
 					break;
@@ -173,7 +180,6 @@ class TeiDom {
 	public function addPublicationStmt() {
 
 		//cr
-
 
 		$litAvailNode = $this->xpath->query("//tei:publicationStmt/tei:availability[@rend='literal']")->item(0);
 		$litAvailNode->appendChild($this->sanitizeString("Creative Commons - " . strtoupper( $this->projectData['cctype'] )));
@@ -222,8 +228,6 @@ class TeiDom {
 			$projectBibl->appendChild($createdNode);
 			$createdNode->appendChild($this->dom->createTextNode($this->projectData['post_date']));
 		}
-
-
 	}
 
 
@@ -251,6 +255,9 @@ class TeiDom {
 	}
 
 	public function addBackMatter() {
+		if($this->projectData['outputParams']['colophon'] && $this->projectData['outputParams']['colophon'] == 'on') {
+			$this->backNode->appendChild( $this->newColophon() );
+		}
 		$this->doIndexing();
 	}
 	public function sanitizeMedia() {
@@ -322,7 +329,7 @@ class TeiDom {
 		$persName = $this->dom->createElementNS(TEI, 'persName');
 		$name = $this->dom->createElementNS(TEI, 'name');
 		$name->appendChild($this->sanitizeString($wpUserObj->display_name));
-		$firstname = $this->dom->createElementNS(TEI, 'firstname');
+		$firstname = $this->dom->createElementNS(TEI, 'forename');
 		$firstname->appendChild($this->sanitizeString($wpUserObj->first_name));
 		$surname = $this->dom->createElementNS(TEI, 'surname');
 		$surname->appendChild($this->sanitizeString($wpUserObj->last_name));
@@ -341,7 +348,7 @@ class TeiDom {
 		$grav_url = "http://www.gravatar.com/avatar/" . md5( strtolower( trim( $wpUserObj->user_email ) ) ) ;
 
 		//building it myself rather using WP's function so I build a node in the right document
-		$grav = $this->dom->createElement('img');
+		$grav = $this->dom->createElementNS(HTML, 'img');
 		$src = $grav->setAttribute('src', $grav_url);
 
 		//adding the nodes to the TEI as I build them because otherwise funky and wrong xmlns:defaults are added
@@ -438,6 +445,17 @@ class TeiDom {
 		return $rs;
 	}
 
+	public function newNote($commentObj) {
+		$note = $this->dom->createElementNS(TEI, 'note');
+		$bibl = $this->dom->createElementNS(TEI, 'bibl');
+		$note->appendChild($bibl);
+		//TODO: figure out commenter data structures
+		$commenterObj = new StdClass();
+		$bibl->appendChild($this->newCommenter($commenterObj));
+		$note->appendChild($this->sanitizeString($commentObj->comment_content, true));
+	}
+
+
 	public function addStructuredSubjects($postID) {
 
 		$subjects = $this->fetchPostSubjects($postID);
@@ -495,14 +513,32 @@ class TeiDom {
 	}
 
 	public function newItem($libraryItemObject) {
+
 		$newItem = $this->dom->createElementNS(TEI, 'div');
 		$newItem->setAttribute('type', 'libraryItem');
 		$newItem->setAttribute('subtype', 'html');
 		$newItem->appendChild($this->newHead($libraryItemObject));
 
+		/*
+		 *
+		 * planning ahead toward revised tei to include comments
+		$div = $this->dom->createElementNS(TEI, 'div');
+		$div->setAttribute('type', 'itemContent');
+		*/
+
 		$content = $libraryItemObject->post_content;
 
-		$newItem->appendChild($this->sanitizeString($libraryItemObject->post_content, true));
+		$contentImport = $this->sanitizeString($content, true);
+		$newItem->appendChild($contentImport);
+
+		if($this->includeComments) {
+			$commentsDiv = $this->dom->createElementNS(TEI, 'div');
+			$commentsDiv->setAttribute('type', 'comments');
+			$comments = array(); //for me and boone to figure out
+			foreach($comments as $comment) {
+				$commentsDiv->appendChild($this->newNote($comment));
+			}
+		}
 
 		return $newItem;
 	}
@@ -543,8 +579,6 @@ class TeiDom {
 					}
 				}
 
-
-
 				//work with the anthologize data
 				$meta = get_post_meta($postObject->ID, 'anthologize_meta', true );
 
@@ -554,7 +588,20 @@ class TeiDom {
 				}
 
 				if($this->includeOriginalPostData) {
+					//TODO: include date created and modified data
 					$origPostData = get_post($postObject->original_post_id);
+					$permalinkURL = get_permalink($postObject->original_post_id);
+
+					$permalink = $this->dom->createElementNS(TEI, 'ident');
+					$permalink->setAttribute('type', 'permalink');
+					$permalink->appendChild($this->dom->createCDataSection($permalinkURL));
+					$newHead->appendChild($permalink);
+
+					$origGuid = $this->dom->createElementNS(TEI, 'ident');
+					$origGuid->appendChild($this->dom->createCDataSection($origPostData->guid));
+					$origGuid->setAttribute('type', 'origGuid');
+					$newHead->appendChild($origGuid);
+
 					$origCreator = get_userdata($origPostData->post_author);
 					$bibl->appendChild($this->newAuthor($origCreator, 'originalAuthor') );
 					if($this->includeStructuredCreatorData) {
@@ -573,16 +620,32 @@ class TeiDom {
 		return $newHead;
 	}
 
-	private function sanitizeString($content, $isMultiline = false) {
+	public function sanitizeString($content, $isMultiline = false) {
 
 		$content = $this->sanitizeEntities($content);
+
 		if ($isMultiline) {
-			$content = wpautop($content);
-			$content = $this->sanitizeShortCodes($content);
+			//TODO: check if this is redundant now that I'm using apply_filters()'
+			//$content = wpautop($content);
+			//$content = $this->sanitizeShortCodes($content);
+
+			$content = apply_filters('the_content', $content);
+			if($this->tidy) {
+				$this->tidy->parseString($content, array(), 'utf8');
+				$this->tidy->cleanRepair();
+
+				//Tidy makes a full html document, with head section, so get just the body
+				//then strip out the body tag
+				$content = tidy_get_body( $this->tidy );
+				$content = rtrim($content, '</body>');
+				$content = ltrim($content, '<body>');
+			}
 			$element = "div";
+
 		} else {
 			$element = "span";
 		}
+		$content = trim($content);
 
 		//using loadHTML because it is more forgiving than loadXML
 		$tmpHTML = new DOMDocument('1.0', 'UTF-8');
@@ -592,18 +655,18 @@ class TeiDom {
 		if($this->checkImgSrcs) {
 			$this->checkImageSources($tmpHTML);
 		}
-
 		$contentDiv = $tmpHTML->getElementsByTagName($element)->item(0);
 		$imported = $this->dom->importNode($contentDiv, true);
 		return $imported;
 	}
 
 
-	private function sanitizeShortCodes($content) {
+	public function sanitizeShortCodes($content) {
 
-		$content = do_shortcode($content);
 		if($this->doShortcodes) {
+			$content = do_shortcode($content);
 		    $pattern = get_shortcode_regex();
+
 			return preg_replace_callback('/'.$pattern.'/s', array('TeiDom', 'sanitizeShortCode'), $content);
 		} else {
 			return strip_shortcodes($content);
@@ -611,13 +674,13 @@ class TeiDom {
 
 	}
 
-	private function sanitizeEntities($content) {
+	public function sanitizeEntities($content) {
 		//TODO: sort out the best order to convert characters and sanitizing stuff.
 
 		return str_replace("&nbsp;", " ", $content);
 	}
 
-	private function sanitizeShortCode($m) {
+	public function sanitizeShortCode($m) {
 		//modified from WP do_shortcode_tag() wp_includes/shortcodes.php
 
 		$tag = $m[2];
@@ -630,13 +693,13 @@ class TeiDom {
 		return $html;
 	}
 
-	private function checkImageSources($tmpHTML) {
+	public function checkImageSources($tmpHTML) {
 		//TODO: check for net connectivity
 		//TODO: improve pseudo-error message and feedback
 		$xpath = new DOMXPath($tmpHTML);
 		$srcs = $xpath->evaluate("//img/@src");
-
 		foreach($srcs as $srcNode) {
+
 			$imgNode = $srcNode->parentNode;
 			$src = $srcNode->nodeValue;
 			$ch = curl_init();
@@ -653,13 +716,13 @@ class TeiDom {
 		}
 	}
 
-	private function getID($node) {
+	public function getID($node) {
 		//if its in the HTML, check if it already has an id
-		$existingID = $node->getAttribute('id');
-		if($node->getAttribute('id')) {
+
+		if($node->hasAttribute('id')) {
 			return $node->getAttribute('id');
 		}
-		if($node->getAttribute('xml:id')) {
+		if($node->hasAttribute('xml:id')) {
 			return $node->getAttribute('xml:id');
 		}
 		$parentItem = $this->getParentItem($node);
@@ -674,6 +737,28 @@ class TeiDom {
 			}
 			$index ++;
 		}
+	}
+
+	public function newColophon() {
+
+		$colophonNode = $this->dom->createElementNS(TEI, 'div');
+		$colophonNode->setAttribute('xml:id', 'colophon');
+		$colophonNode->setAttribute('n', '0');
+		$colophonNode->setAttribute('type', 'colophon');
+
+		$day   = date(jS);
+		$month = date(F);
+	 	$year  = date(Y);
+		$date  = "the " . $day . " of " . $month . ", " . $year;
+
+		$logo  = WP_PLUGIN_URL . '/anthologize/images/anthologize-logo.gif';
+
+		$horace_quote = "Omne tulit punctum qui miscuit utile dulci -- Horace";
+
+		$colophon = "<div style=\"text-align: center;\"><em>This Document was Generated on<br/>" . $date . "<br/>using<br/><br/><a href=\"http://www.anthologize.org/\"><img src=\"" . $logo . "\"\></a></em><br/><br/>" . $horace_quote . "</div>";
+
+		$colophonNode->appendChild( $this->sanitizeString($colophon, true) );
+		return $colophonNode;
 	}
 
 	public function doIndexing() {
@@ -854,16 +939,7 @@ class TeiDom {
 	}
 
 
-	/* Accessor Methods */
 
-
-	public function getTeiString() {
-		return $this->dom->saveXML();
-	}
-
-	public function getTeiDom() {
-		return $this->dom;
-	}
 
 	public function getFileName($sessionArray) {
 
@@ -896,7 +972,6 @@ class TeiDom {
 	public function getParentItem($node) {
 		while( $node->getAttribute('type') != 'libraryItem') {
 			$node = $node->parentNode;
-
 		}
 		return $node;
 	}
@@ -933,7 +1008,13 @@ class TeiDom {
 
 	}
 
+	public function getTeiString() {
+		return $this->dom->saveXML();
+	}
 
+	public function getTeiDom() {
+		return $this->dom;
+	}
 }
 
 

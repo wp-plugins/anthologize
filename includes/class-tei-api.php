@@ -258,6 +258,8 @@ class TeiApi {
 	 * @return string
 	 */
 
+
+//TODO: make option to return node like other methods
 	public function getProjectTitle($valueOnly = false) {
 
 		$queryString = "//tei:head[@type='titlePage']/tei:bibl/tei:title[@type='main']";
@@ -290,7 +292,7 @@ class TeiApi {
 	 * @return mixed array of data or string
 	 */
 
-	public function getProjectCreator($asStructured = false) {
+	public function getProjectCreator($asStructured = false, $html = true) {
 		$queryString = "//tei:author[@role = 'projectCreator']";
 		$creator = $this->getNodeListByXPath($queryString, true);
 
@@ -300,7 +302,13 @@ class TeiApi {
 			return $this->nodeToArray($structuredCreator);
 		}
 
-		return $this->getNodeXML($creator->firstChild);
+		if($html) {
+			return $this->getNodeXML($creator->firstChild);
+		}
+
+		return $creator->firstChild->textContent;
+
+
 	}
 
 	/**
@@ -308,12 +316,13 @@ class TeiApi {
 	 * @param $asStructured = false return as structured data or human-readable
 	 * return string
 	 */
-
-	public function getProjectCopyright($asStructured = false) {
+//TODO: make it return a node,
+	public function getProjectCopyright($asStructured = false, $html = true) {
 
 		if($asStructured) {
 
 			$cr = $this->getNodeListByXPath("//tei:publicationStmt/tei:availability[@rend='structured']/tei:ab", true);
+
 			if($cr->parentNode->getAttribute('status') == 'c') {
 				return "<span>Copyright</span>";
 			}
@@ -325,7 +334,12 @@ class TeiApi {
 				return "<span>Copyright</span>";
 			}
 		}
-		return $this->getNodeXML($cr);
+		if($html) {
+			return $this->getNodeXML($cr);
+		}
+
+		return $cr->firstChild->textContent;
+
 	}
 
 	/**
@@ -450,7 +464,7 @@ class TeiApi {
 	 * @return int
 	 */
 
-	public function getSectionPartItemCount($section, $partNumber) {
+	public function getSectionPartItemCount($section, $partNumber = null) {
 		switch($section) {
 			case 'front':
 				$count = $this->xpath->evaluate("count(//tei:$section/tei:div)");
@@ -461,7 +475,7 @@ class TeiApi {
 			break;
 
 			case 'back':
-
+				$count = $this->xpath->evaluate("count(//tei:$section/tei:div)");
 			break;
 
 		}
@@ -659,6 +673,10 @@ class TeiApi {
 		'asNode'=> true);
 		$data = $this->getNodeDataByParams($params);
 
+		if ($data->childNodes->length == 0) {
+			return false;
+		}
+
 		if($asNode) {
 			return $data;
 		}
@@ -690,15 +708,6 @@ class TeiApi {
 
 	}
 
-/*
- 		if (is_array($index)) {
-
-		} else if (is_a($index, 'DOMElement')) {
-
-		} else {
-			throw new Exception('index must be node or array');
-		}
- */
 
 
 	public function getIndexItem($index, $itemNumber) {
@@ -876,8 +885,5 @@ class TeiApi {
 			break;
 
 		}
-
 	}
-
-
 }

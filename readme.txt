@@ -21,6 +21,7 @@ The best way to install Anthologize is via the Add New link under Dashboard > Pl
 To install Anthologize manually, follow these steps.
 
 1. Upload the `anthologize` directory to `/wp-content/plugins/`
+1. Make sure the `/anthologize/templates/epub/temp/` directory is writable by the server
 1. Activate Anthologize through the WordPres 'Plugins' menu
 1. Visit Dashboard > Anthologize to start compiling your project
 
@@ -30,7 +31,35 @@ If you're upgrading manually from a previous version of Anthologize, please be s
 
 1. The Anthologize Project Organizer screen
 
+== Usage ==
+
+Many optimizations to the PDF export have been added, but resource limits on the server will always be a potential issue. Here are some tips for large exports:
+
+1. Include page breaks between parts and items. This appears to reduce the memory that the PDF classes (TCPDF) require.
+2. Add the following lines at the top of wp-setting.php in your WordPress installation, above define( 'WPINC', 'wp-includes' );
+
+ini_set('max_execution_time', '180');
+ini_set('memory_limit', '128M');
+
+The latest release of PHP has a default memory limit of 128M, but this might not be in place on your server. Increasing the execution time (measured in seconds) can also help.
+In a hosted server environment, these might be disabled, and/or you might make the admins mad at you for increasing the resources Anthologize consumes, thus hurting performance for everyone else on your server. It might be worth consulting your hosting company before increasing these resource limits and exporting projects on a regular basis.
+
+Cover images in ePub output.
+
+To add your own cover images, just upload them to the anthologize/templates/covers directory and they will appear as options in the export screen. Make sure they are readable by the server.
+
+
+
 == Changelog ==
+
+= 0.5.1-alpha = 
+
+* many optimizations to PDF export
+* added anthologize logo and part-item breadcrumbs to PDF output
+* partially OOified epub export
+* added part-item nesting to epub ToC
+* added cover image option to epub output (might not work in all readers. standards-schmandards)
+
 
 = 0.5-alpha =
 * Code name "Gabardine"

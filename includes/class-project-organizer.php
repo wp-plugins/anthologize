@@ -13,8 +13,9 @@ class Anthologize_Project_Organizer {
 		$this->project_id = $project_id;
 
 		$project = get_post( $project_id );
-	
-		$this->project_name = $project->post_title;
+		
+		if ( !empty( $project->post_title ) )
+			$this->project_name = $project->post_title;
 
 	}
 
@@ -152,8 +153,7 @@ class Anthologize_Project_Organizer {
 			'date' => __( 'Date Range', 'anthologize' ),
 			'post_type' => __( 'Post Type', 'anthologize' )
 		);
-		if ( isset( $_COOKIE['anth-filter'] ) )
-			$cfilter = $_COOKIE['anth-filter'];
+		$cfilter = isset( $_COOKIE['anth-filter'] ) ? $_COOKIE['anth-filter'] : '';
 		?>
             <span><?php _e( 'Filter by', 'anthologize' ) ?></span>
 			<select name="sortby" id="sortby-dropdown">
@@ -225,15 +225,33 @@ class Anthologize_Project_Organizer {
 		<?php
 	}
 	
-	// A filterable list of post types that can
-	// serve as a filter for the project organizer
+	/**
+	 * Provide a list of post types available as a filter on the project organizer screen.
+	 *
+	 * @package Anthologize
+	 * @subpackage Project Organizer
+	 * @since 0.5
+	 *
+	 * @return array A list of post type labels, keyed by name
+	 */
 	function available_post_types() {
-		$types = array(
-			'post' => __( 'Posts' ),
-			'page' => __( 'Pages' ),
-			'anth_imported_item' => __( 'Imported Items', 'anthologize' )
-		);
+		$all_post_types = get_post_types( false, false );
 		
+		$excluded_post_types = apply_filters( 'anth_excluded_post_types', array(
+			'anth_library_item',
+			'anth_part',
+			'anth_project',
+			'attachment',
+			'revision',
+			'nav_menu_item'
+		) );
+		
+		$types = array();
+		foreach( $all_post_types as $name => $post_type ) {
+			if ( !in_array( $name, $excluded_post_types ) )
+				$types[$name] = isset( $post_type->labels->name ) ? $post_type->labels->name : $name;
+		}
+				
 		return apply_filters( 'anth_available_post_types', $types );		
 	}
 
@@ -470,6 +488,10 @@ class Anthologize_Project_Organizer {
 			</ul>
 		<?php
 		}
+
+        if ( $cfilter == 'date' ) {
+            remove_filter('posts_where', $filter_where);
+        }
 	}
 
 	function get_posts_as_option_list( $part_id ) {
@@ -499,8 +521,7 @@ class Anthologize_Project_Organizer {
 
 	function get_part_items( $part_id ) {
 
-		if ( isset( $_GET['append_parent'] ) )
-			$append_parent = $_GET['append_parent'];
+		$append_parent = !empty( $_GET['append_parent'] ) ? $_GET['append_parent'] : false;
 
 		$items = get_post_meta( $part_id, 'items', true );
 

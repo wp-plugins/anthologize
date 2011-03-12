@@ -59,7 +59,7 @@
             }
             #publication-statement-page 
             { 
-              page-break-after: always; padding-top: 10em; text-align: center
+              page-break-after: always; padding-top: 10em; 
             }
             .anthologize-chapter-title 
             { 
@@ -75,6 +75,11 @@
               margin-bottom: 2em;
             }
             
+						div.back 
+						{
+						  page-break-before: always;
+						}
+						
             /* Wordpress styles */
             
             .alignright { float: right }
@@ -102,9 +107,7 @@
             <h3>
               <xsl:value-of select="$book.title-page.doc-author"/>
             </h3>
-          </xsl:if>
-          
-
+          </xsl:if>         
         </div>
 
         <!-- Publication statement page -->
@@ -176,10 +179,16 @@
         <xsl:for-each select="$blog.posts">
           <div class="chapter" id="epub-chapter-{position()}">
             <h2 class="anthologize-chapter-title">
+                <xsl:element name="a">
+                  <xsl:attribute name="id"><xsl:value-of select="@xml:id"/></xsl:attribute>
+                </xsl:element>            	
               <xsl:value-of select="tei:head/tei:title"/>
             </h2>
             <div class="chapter-content">
               <xsl:for-each select="tei:div[@type='libraryItem']">
+                <xsl:element name="a">
+                  <xsl:attribute name="id"><xsl:value-of select="@xml:id"/></xsl:attribute>
+                </xsl:element>
                 <div class="library-item">
                   <xsl:if test="tei:head/tei:title">
                     <h3 class="library-item-title">
@@ -199,6 +208,8 @@
             </div>
           </div>
         </xsl:for-each>
+				
+					
       </body>
     </html>
   </xsl:template>
