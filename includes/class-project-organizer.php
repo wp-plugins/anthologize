@@ -19,11 +19,6 @@ class Anthologize_Project_Organizer {
 
 	}
 
-
-	function load_scripts() {
-	}
-
-
 	function display() {
 
 		if ( isset( $_POST['new_item'] ) )
@@ -59,6 +54,7 @@ class Anthologize_Project_Organizer {
 
 		<div id="project-actions">
 			<a href="admin.php?page=anthologize/includes/class-new-project.php&project_id=<?php echo $this->project_id ?>"><?php _e( 'Project Details', 'anthologize' ) ?></a> |
+			<a target="_blank" href="<?php echo $this->preview_url( $this->project_id, 'anth_project' ) ?>"><?php _e( 'Preview Project', 'anthologize' ) ?></a> |
 			<a href="admin.php?page=anthologize&action=delete&project_id=<?php echo $this->project_id ?>" class="confirm-delete"><?php _e( 'Delete Project', 'anthologize' ) ?></a>
 		</div>
 
@@ -283,6 +279,9 @@ class Anthologize_Project_Organizer {
 		  'to_ping' => $the_item->to_ping, // todo: tags and categories
 		);
 
+        // WordPress will strip these slashes off in wp_insert_post
+        $args = add_magic_quotes($args);
+
 		if ( !$imported_item_id = wp_insert_post( $args ) )
 			return false;
 		
@@ -379,6 +378,9 @@ class Anthologize_Project_Organizer {
 
 						<div class="part-buttons">
 							<a href="post.php?post=<?php the_ID() ?>&action=edit&return_to_project=<?php echo $this->project_id ?>"><?php _e( 'Edit', 'anthologize' ) ?></a> |
+							
+							<a target="_blank" href="<?php echo $this->preview_url( get_the_ID(), 'anth_part' ) ?>" class=""><?php _e( 'Preview', 'anthologize' ) ?></a> |
+							
 							<a href="admin.php?page=anthologize&action=edit&project_id=<?php echo $this->project_id ?>&remove=<?php the_ID() ?>" class="remove"><?php _e( 'Remove', 'anthologize' ) ?></a> |
 							<a href="#collapse" class="collapsepart"> - </a> 
 						</div>
@@ -722,6 +724,26 @@ class Anthologize_Project_Organizer {
 
 	function display_item( $append_parent ) {
 		global $post;
+		
+		/**
+		 * Pull up some comment data to be used in the Comments (x/y) area.
+		 * Comments themselves are fetched with AJAX as needed.
+		 */
+		
+		// First, the original post
+		$anth_meta = get_post_meta( get_the_ID(), 'anthologize_meta', true );
+		
+		$original_comment_count = 0;
+		if ( !empty( $anth_meta['original_post_id'] ) ) {
+			$original_post = get_post( $anth_meta['original_post_id'] );
+			$original_comment_count = $original_post->comment_count;
+		}
+		
+		// Then, see how many comments are being brought along to the export
+		$included_comment_count = 0;
+		if ( !empty( $anth_meta['included_comments'] ) ) {
+			$included_comment_count = count( $anth_meta['included_comments'] );
+		}
 
 	?>
 
@@ -738,9 +760,17 @@ class Anthologize_Project_Organizer {
 			<h3 class="part-item">
 				<span class="part-title"><?php the_title() ?></span>
 				<div class="part-item-buttons">
-					<a href="post.php?post=<?php the_ID() ?>&action=edit"><?php _e( 'Edit', 'anthologize' ) ?></a> |
+					<a href="post.php?post=<?php the_ID() ?>&action=edit&return_to_project=<?php echo $this->project_id ?>"><?php _e( 'Edit', 'anthologize' ) ?></a> |
 
-					<a href="#append" class="append"><?php _e( 'Append', 'anthologize' ) ?></a><span class="append-sep"> |</span>
+					<?php /* Comments are being pushed to 0.7 */ ?>
+					<?php /*
+					<a href="#comments" class="comments toggle"><?php printf( __( 'Comments (<span class="included-comment-count">%1$d</span>/%2$d)', 'anthologize' ), $included_comment_count, $original_comment_count ) ?></a><span class="comments-sep toggle-sep"> |</span>
+					*/ ?>
+
+					<a href="#append" class="append toggle"><?php _e( 'Append', 'anthologize' ) ?></a><span class="append-sep toggle-sep"> |</span>
+					
+					<a target="new" href="<?php echo $this->preview_url( get_the_ID(), 'anth_library_item' ) ?>" class=""><?php _e( 'Preview', 'anthologize' ) ?></a><span class="toggle-sep"> |</span>
+					
 					<?
 					// admin.php?page=anthologize&action=edit&project_id=$this->project_id&append_parent= the_ID()
 					?>
@@ -750,7 +780,28 @@ class Anthologize_Project_Organizer {
 		</li>
 	<?php
 	}
-
+	
+	/**
+	 * Get the href for an object's Preview link
+	 *
+	 * @package Anthologize
+	 * @since 0.6
+	 *
+	 * @param int $post_id The id of the post (item, part, or project) being previewed
+	 * @param str $post_type The post type of the post being previewed
+	 */
+	function preview_url( $post_id = false, $post_type = 'anth_library_item' ) {
+		$query_args = array(
+			'page'		=> 'anthologize',
+			'anth_preview' 	=> '1',
+			'post_id' 	=> $post_id,
+			'post_type'	=> $post_type
+		);	
+		
+		$url = add_query_arg( $query_args, admin_url( 'admin.php' ) );
+		
+		return $url;
+	}
 }
 
 endif;

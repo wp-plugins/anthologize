@@ -5,7 +5,7 @@
 // Last Update : 2010-08-08
 //
 // Description : Example 024 for TCPDF class
-//               Object Visibility
+//               Object Visibility and Layers
 //
 // Author: Nicola Asuni
 //
@@ -22,11 +22,8 @@
 /**
  * Creates an example PDF TEST document using TCPDF
  * @package com.tecnick.tcpdf
- * @abstract TCPDF - Example: Object Visibility
+ * @abstract TCPDF - Example: Object Visibility and Layers
  * @author Nicola Asuni
- * @copyright 2004-2009 Nicola Asuni - Tecnick.com S.r.l (www.tecnick.com) Via Della Pace, 11 - 09044 - Quartucciu (CA) - ITALY - www.tecnick.com - info@tecnick.com
- * @link http://tcpdf.org
- * @license http://www.gnu.org/copyleft/lesser.html LGPL
  * @since 2008-03-04
  */
 
@@ -110,6 +107,28 @@ $pdf->Write(0, '[This line is for printout]', '', 0, 'C', true, 0, false, false,
 
 // restore visibility
 $pdf->setVisibility('all');
+
+// ---------------------------------------------------------
+
+// LAYERS
+
+// start a new layer
+$pdf->startLayer('layer1', true, true);
+
+// change font size
+$pdf->SetFontSize(18);
+
+// change text color
+$pdf->SetTextColor(0,127,0);
+
+$txt = 'Using the startLayer() method you can group PDF objects into layers.
+This text is on "layer1".';
+
+// write something
+$pdf->Write(0, $txt, '', 0, 'L', true, 0, false, false, 0);
+
+// close the current layer
+$pdf->endLayer();
 
 // ---------------------------------------------------------
 

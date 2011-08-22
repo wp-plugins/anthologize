@@ -80,6 +80,11 @@ class Anthologize_Loader {
 
 	// Load constants
 	function load_constants() {
+		if ( !defined( 'ANTHOLOGIZE_INSTALL_PATH' ) )
+			define( 'ANTHOLOGIZE_INSTALL_PATH', WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'anthologize' . DIRECTORY_SEPARATOR );
+		
+		if ( !defined( 'ANTHOLOGIZE_INCLUDES_PATH' ) )
+			define( 'ANTHOLOGIZE_INCLUDES_PATH', ANTHOLOGIZE_INSTALL_PATH . 'includes' . DIRECTORY_SEPARATOR );
 
 		if ( !defined( 'ANTHOLOGIZE_TEIDOM_PATH' ) )
 			define( 'ANTHOLOGIZE_TEIDOM_PATH', WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'anthologize' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'class-tei-dom.php' );
@@ -198,7 +203,7 @@ class Anthologize_Loader {
 			'show_ui' => true,
 			'capability_type' => 'page',
 			'hierarchical' => true,
-			'supports' => array('title', 'editor', 'revisions'),
+			'supports' => array('title', 'editor', 'revisions', 'comments'),
 			'rewrite' => array("slug" => "library_item"), // Permalinks format
 		));
 
@@ -282,6 +287,14 @@ class Anthologize_Loader {
 
 		anthologize_register_format_option( 'pdf', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
 
+		// Register RTF + options
+		anthologize_register_format( 'rtf', __( 'RTF', 'anthologize' ), WP_PLUGIN_DIR . '/anthologize/templates/rtf/base.php' );
+		anthologize_register_format_option( 'rtf', 'page-size', __( 'Page Size', 'anthologize' ), 'dropdown', $d_page_size, 'letter' );
+		anthologize_register_format_option( 'rtf', 'font-size', __( 'Base Font Fize', 'anthologize' ), 'dropdown', $d_font_size, '12' );
+		anthologize_register_format_option( 'rtf', 'font-face', __( 'Font Face', 'anthologize' ), 'dropdown', $d_font_face_pdf, 'Times New Roman' );
+		anthologize_register_format_option( 'rtf', 'break-parts', __( 'Page break before parts?', 'anthologize' ), 'checkbox' );
+		anthologize_register_format_option( 'rtf', 'break-items', __( 'Page break before items?', 'anthologize' ), 'checkbox' );
+		anthologize_register_format_option( 'rtf', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
 
 		// Register ePub.
 		anthologize_register_format( 'epub', __( 'ePub', 'anthologize' ), WP_PLUGIN_DIR . '/anthologize/templates/epub/index.php' );
@@ -289,6 +302,8 @@ class Anthologize_Loader {
 		anthologize_register_format_option( 'epub', 'font-size', __( 'Base Font Fize', 'anthologize' ), 'dropdown', $d_font_size, '12' );
 
 		anthologize_register_format_option( 'epub', 'font-family', __( 'Font Family', 'anthologize' ), 'dropdown', $d_font_face_epub, 'Times New Roman' );
+		
+		anthologize_register_format_option( 'epub', 'colophon', __( 'Include Anthologize colophon page?', 'anthologize' ), 'checkbox' );
 
 		//build the covers list for selection
 		$coversArray = array();
@@ -345,6 +360,11 @@ class Anthologize_Loader {
 		global $anthologize_formats;
 
 		$return = true;
+
+		if ( isset( $_GET['anth_preview'] ) ) {
+			load_template( dirname(__FILE__) . '/templates/html_preview/preview.php' );
+			die();
+		}
 
 		if ( isset( $_POST['export-step'] ) ) {
 			if ( $_POST['export-step'] == 3 )

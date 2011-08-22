@@ -1,5 +1,7 @@
 function do_filter(){
 	var j = jQuery;
+	var cookieExpires = new Date();
+ 	cookieExpires.setTime(cookieExpires.getTime() + (60 * 60 * 1000));
 	
 	j.blockUI({css:{width: '12%',top:'40%',left:'45%'},
                         message: jQuery('#blockUISpinner').show() });
@@ -13,12 +15,12 @@ function do_filter(){
 	if (filterby == 'date'){	
 		data['startdate'] = j("#startdate").val();
   		data['enddate'] = j("#enddate").val();
-		j.cookie( 'anth-startdate', j("#startdate").val() );
-		j.cookie( 'anth-enddate', j("#enddate").val() );
+		j.cookie( 'anth-startdate', j("#startdate").val(), { expires: cookieExpires } );
+		j.cookie( 'anth-enddate', j("#enddate").val(), { expires: cookieExpires } );
 	}else{
 		var term = j('#filter').val();
 		data['term'] = term;
-		j.cookie('anth-term', term);
+		j.cookie('anth-term', term, { expires: cookieExpires });
 	}
 	
 	j.ajax({
@@ -44,6 +46,24 @@ function do_filter(){
 jQuery(document).ready( function() {
 	var j = jQuery;
 
+	// Set parent id for new parts and account for autosave
+	var anth_parent = j('#anth_parent_id');
+	if (anth_parent.length){
+		var wp_parent = j('input[name="parent_id"]').not(anth_parent);
+		if (wp_parent.length){
+			wp_parent.val(anth_parent.val());
+			anth_parent.remove();	
+		}else{
+			anth_parent.attr('id', 'parent_id');
+		}	
+	}
+
+	// Put the proper selector on the parent_id box to ensure that it doesn't get wiped on
+        // autosave
+        if (!j('input#parent_id').length) {
+                j('input[name="parent_id"]').first().attr('id', 'parent_id');
+        }
+	
 	// Set filter based on last visit
 	var cfilter = j.cookie('anth-filter');
 	
@@ -65,7 +85,9 @@ jQuery(document).ready( function() {
 
 		var filter = j('#sortby-dropdown').val();
 
-		j.cookie('anth-filter', filter);
+		var cookieExpires = new Date();
+ 		cookieExpires.setTime(cookieExpires.getTime() + (60 * 60 * 1000));
+		j.cookie('anth-filter', filter, { expires: cookieExpires });
 
 		if (filter == 'date') {
 			j("#termfilter").hide();
@@ -77,9 +99,10 @@ jQuery(document).ready( function() {
 			j("#termfilter").show();
 		}
 	
-		j('#filter').trigger('change');
-
 		if (filter == '') {
+			j('#filter').empty();
+			j('#filter').append('<option value=""> - </option>');
+			j('#filter').trigger('change');
 			j.unblockUI();
 			return true;
 		}
@@ -108,6 +131,7 @@ jQuery(document).ready( function() {
 				});
 			},
 			complete: function(){
+				j('#filter').trigger('change');
 				j.unblockUI();
 			}
 		});
@@ -180,3 +204,4 @@ jQuery(document).ready( function() {
 	});
 
 });
+

@@ -40,7 +40,12 @@ class Anthologize_Export_Panel {
 
 		$cdate = !empty( $options['cdate'] ) ? $options['cdate'] : date('Y');
 
-		$cname = !empty( $options['cname'] ) ? $options['cname'] : $options['author_name'];
+		if ( isset( $options['cname'] ) )
+			$cname = $options['cname'];
+		else if ( isset( $options['author_name'] ) )
+			$cname = $options['author_name'];
+		else
+			$cname = '';
 
 		// Default is Creative Commons
 		$ctype = !empty( $options['ctype'] ) ? $options['ctype'] : 'cc';
@@ -48,9 +53,14 @@ class Anthologize_Export_Panel {
 		$cctype = !empty( $options['cctype'] ) ? $options['cctype'] : 'by';
 
 		// No default for edition number
-		$edition = $options['edition'];
+		$edition = isset( $options['edition'] ) ? isset( $options['edition'] ) : false;
 
-	 	$authors = !empty( $options['authors'] ) ? $options['authors'] : $options['author_name'];
+		if ( isset( $options['authors'] ) )
+			$authors = $options['authors'];
+		else if ( isset( $options['author_name'] ) )
+			$authors = $options['authors'];
+		else
+			$authors = '';
 	 	
 		$dedication = !empty( $options['dedication'] ) ? $options['dedication'] : '';
 
@@ -234,7 +244,10 @@ class Anthologize_Export_Panel {
 		// outputParams need to be reset at step 3 so that
 		// on a refresh null values will overwrite
 		if ( $_POST['export-step'] == '3' ) {
-			$_SESSION['outputParams'] = array( 'format' => $_SESSION['outputParams']['filetype'] );
+			// filetype has been set different ways in different versions
+			// This is to be safe
+			$filetype = isset( $_SESSION['outputParams']['filetype'] ) ? $_SESSION['outputParams']['filetype'] : $_SESSION['filetype'];
+			$_SESSION['outputParams'] = array( 'format' => $filetype );
 		}		
 		
 		

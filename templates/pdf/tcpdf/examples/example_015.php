@@ -2,10 +2,11 @@
 //============================================================+
 // File name   : example_015.php
 // Begin       : 2008-03-04
-// Last Update : 2010-08-08
+// Last Update : 2011-04-15
 //
 // Description : Example 015 for TCPDF class
 //               Bookmarks (Table of Content)
+//               and Named Destinations.
 //
 // Author: Nicola Asuni
 //
@@ -24,9 +25,6 @@
  * @package com.tecnick.tcpdf
  * @abstract TCPDF - Example: Bookmarks (Table of Content)
  * @author Nicola Asuni
- * @copyright 2004-2009 Nicola Asuni - Tecnick.com S.r.l (www.tecnick.com) Via Della Pace, 11 - 09044 - Quartucciu (CA) - ITALY - www.tecnick.com - info@tecnick.com
- * @link http://tcpdf.org
- * @license http://www.gnu.org/copyleft/lesser.html LGPL
  * @since 2008-03-04
  */
 
@@ -69,7 +67,7 @@ $pdf->setLanguageArray($l);
 
 // ---------------------------------------------------------
 
-// Bookmark($txt, $level=0, $y=-1, $page='')
+// Bookmark($txt, $level=0, $y=-1, $page='', $style='', $color=array(0,0,0))
 
 // set font
 $pdf->SetFont('times', 'B', 20);
@@ -78,41 +76,54 @@ $pdf->SetFont('times', 'B', 20);
 $pdf->AddPage();
 
 // set a bookmark for the current position
-$pdf->Bookmark('Chapter 1', 0, 0);
+$pdf->Bookmark('Chapter 1', 0, 0, '', 'B', array(0,64,128));
 
 // print a line using Cell()
 $pdf->Cell(0, 10, 'Chapter 1', 0, 1, 'L');
 
 $pdf->SetFont('times', 'I', 14);
-$pdf->Write(0, 'You can set PDF Bookmarks using the Bookmark() method.');
+$pdf->Write(0, 'You can set PDF Bookmarks using the Bookmark() method.
+You can set PDF Named Destinations using the setDestination() method.');
 
 $pdf->SetFont('times', 'B', 20);
 
 // add other pages and bookmarks
 
 $pdf->AddPage();
-$pdf->Bookmark('Paragraph 1.1', 1, 0);
+$pdf->Bookmark('Paragraph 1.1', 1, 0, '', '', array(0,0,0));
 $pdf->Cell(0, 10, 'Paragraph 1.1', 0, 1, 'L');
 
 $pdf->AddPage();
-$pdf->Bookmark('Paragraph 1.2', 1, 0);
+$pdf->Bookmark('Paragraph 1.2', 1, 0, '', '', array(0,0,0));
 $pdf->Cell(0, 10, 'Paragraph 1.2', 0, 1, 'L');
 
 $pdf->AddPage();
-$pdf->Bookmark('Sub-Paragraph 1.2.1', 2, 0);
+$pdf->Bookmark('Sub-Paragraph 1.2.1', 2, 0, '', 'I', array(0,0,0));
 $pdf->Cell(0, 10, 'Sub-Paragraph 1.2.1', 0, 1, 'L');
 
 $pdf->AddPage();
-$pdf->Bookmark('Paragraph 1.3', 1, 0);
+$pdf->Bookmark('Paragraph 1.3', 1, 0, '', '', array(0,0,0));
 $pdf->Cell(0, 10, 'Paragraph 1.3', 0, 1, 'L');
 
 $pdf->AddPage();
-$pdf->Bookmark('Chapter 2', 0, 0);
+// add a named destination so you can open this document at this page using the link: "example_015.pdf#chapter2"
+$pdf->setDestination('chapter2', 0, '');
+$pdf->Bookmark('Chapter 2', 0, 0, '', 'BI', array(128,0,0));
 $pdf->Cell(0, 10, 'Chapter 2', 0, 1, 'L');
+$pdf->SetFont('times', 'I', 14);
+$pdf->Write(0, 'Once saved, you can open this document at this page using the link: "example_015.pdf#chapter2".');
 
 $pdf->AddPage();
-$pdf->Bookmark('Chapter 3', 0, 0);
+$pdf->setDestination('chapter3', 0, '');
+$pdf->SetFont('times', 'B', 20);
+$pdf->Bookmark('Chapter 3', 0, 0, '', 'B', array(0,64,128));
 $pdf->Cell(0, 10, 'Chapter 3', 0, 1, 'L');
+
+$pdf->AddPage();
+$pdf->setDestination('chapter4', 0, '');
+$pdf->SetFont('times', 'B', 20);
+$pdf->Bookmark('Chapter 4', 0, 0, '', 'B', array(0,64,128));
+$pdf->Cell(0, 10, 'Chapter 4', 0, 1, 'L');
 
 // ---------------------------------------------------------
 
@@ -120,5 +131,5 @@ $pdf->Cell(0, 10, 'Chapter 3', 0, 1, 'L');
 $pdf->Output('example_015.pdf', 'I');
 
 //============================================================+
-// END OF FILE                                                
+// END OF FILE
 //============================================================+
