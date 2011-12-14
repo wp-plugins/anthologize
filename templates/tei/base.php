@@ -10,6 +10,7 @@ $ops = array('includeStructuredSubjects' => true, //Include structured data abou
 		'includeStructuredCreatorData' => true, //include structured data about creators
 		'includeOriginalPostData' => true, //include data about the original post (true to use tags and categories)
 		'checkImgSrcs' => false, //whether to check availability of image sources
+        'includeComments' => true,
 		'linkToEmbeddedObjects' => false,
 		'indexSubjects' => true,
 		'indexCategories' => true,
@@ -20,9 +21,9 @@ $ops = array('includeStructuredSubjects' => true, //Include structured data abou
 
 $ops['outputParams'] = $_SESSION['outputParams'];
 
+
 $tei = new TeiDom($_SESSION, $ops);
 $api = new TeiApi($tei);
-
 
 
 //if you want to make it a download.
